@@ -32,17 +32,24 @@ export const metadata: Metadata = {
     'Transform your photos, music and memories into a cinematic love experience — a short romantic film that lives in a browser tab, forever.',
   keywords: ['love website generator', 'romantic website', 'anniversary gift', 'couple website'],
   authors: [{ name: 'LoveCraft AI' }],
+  icons: {
+    icon: '/icon.png',
+    apple: '/apple-icon.png',
+    shortcut: '/favicon.ico',
+  },
   openGraph: {
     title: 'LoveCraft AI — Cinematic Love Experiences',
     description:
       'Create a stunning cinematic love website from your photos, music and memories.',
     type: 'website',
     locale: 'en_US',
+    images: [{ url: '/logo.png', width: 512, height: 512, alt: 'LoveCraft AI' }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'LoveCraft AI',
     description: 'Cinematic love websites, crafted from your memories.',
+    images: ['/logo.png'],
   },
   robots: {
     index: true,
