@@ -30,3 +30,7 @@ yarn-error.log*
 # Build artifacts
 *.tsbuildinfo
 next-env.d.ts
+
+# Embedded runtimes & installers (never commit these)
+.node/
+*.exe
