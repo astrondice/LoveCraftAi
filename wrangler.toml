@@ -1,0 +1,27 @@
+name = "lovecraft-api"
+main = "api/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# ── R2 Storage ────────────────────────────────────────────────────
+[[r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "lovecraft-assets"
+
+# ── Environment variables ─────────────────────────────────────────
+[vars]
+ENVIRONMENT = "production"
+
+# Secrets (set via `wrangler secret put`)
+# SUPABASE_URL
+# SUPABASE_SERVICE_ROLE_KEY
+# R2_PUBLIC_URL
+
+# ── Dev environment ───────────────────────────────────────────────
+[env.development]
+name = "lovecraft-api-dev"
+vars = { ENVIRONMENT = "development" }
+
+[[env.development.r2_buckets]]
+binding = "ASSETS_BUCKET"
+bucket_name = "lovecraft-assets-dev"
