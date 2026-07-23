@@ -26,10 +26,9 @@ import { MagneticButton } from "@/components/ui/MagneticButton";
 
 export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
+    if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
     console.log("[LoveCraft Auth] dashboard beforeLoad — isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
-    // While auth is still initializing, let the component render its loading
-    // spinner. The useEffect inside DashboardPage handles the post-init redirect.
     if (!isLoading && !isAuthenticated) {
       console.log("[LoveCraft Auth] Not authenticated — redirecting to /login");
       throw redirect({ to: "/login", search: { redirect: "/dashboard" } });

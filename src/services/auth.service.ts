@@ -22,13 +22,20 @@
 import { supabase } from "@/lib/supabase";
 import type { OAuthProvider, LoginCredentials, User } from "@/types";
 
+function getOrigin(): string {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return import.meta.env.VITE_APP_URL || "http://localhost:3000";
+}
+
 export const authService = {
   /** Sign in with Google or GitHub OAuth */
   async signInWithOAuth(provider: OAuthProvider): Promise<void> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${getOrigin()}/auth/callback`,
         queryParams:
           provider === "google"
             ? { access_type: "offline", prompt: "consent" }
@@ -49,7 +56,7 @@ export const authService = {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${getOrigin()}/auth/callback`,
       },
     });
     if (error) throw new Error(error.message);
@@ -60,7 +67,7 @@ export const authService = {
     const { error } = await supabase.auth.signUp({
       ...creds,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${getOrigin()}/auth/callback`,
       },
     });
     if (error) throw new Error(error.message);

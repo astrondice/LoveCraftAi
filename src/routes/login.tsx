@@ -19,8 +19,8 @@ const loginSearchSchema = z.object({
 export const Route = createFileRoute("/login")({
   validateSearch: loginSearchSchema,
   beforeLoad: () => {
+    if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
-    // Already signed in → skip to dashboard
     if (!isLoading && isAuthenticated) {
       throw redirect({ to: "/dashboard" });
     }

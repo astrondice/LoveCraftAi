@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────────
 // Supabase Client — Singleton for frontend use
+// SSR-safe: persistSession, autoRefreshToken, and detectSessionInUrl
+// are disabled on the server (typeof window === "undefined").
 // ─────────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,14 +15,16 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+const isBrowser = typeof window !== "undefined";
+
 export const supabase = createClient(
   supabaseUrl || "https://placeholder.supabase.co",
   supabaseAnonKey || "placeholder-anon-key",
   {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
+      persistSession: isBrowser,
+      autoRefreshToken: isBrowser,
+      detectSessionInUrl: isBrowser,
       storageKey: "lovecraft-auth",
     },
   },

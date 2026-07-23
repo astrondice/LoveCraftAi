@@ -239,7 +239,7 @@ export const publishService = {
       }
     }
 
-    const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+    const appUrl = import.meta.env.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
     const url = `${appUrl}/sites/${siteId}`;
 
     onProgress({ phase: "done", percent: 100, message: "Your love story is live! 💖" });

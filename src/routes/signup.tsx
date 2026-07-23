@@ -19,6 +19,7 @@ const signupSearchSchema = z.object({
 export const Route = createFileRoute("/signup")({
   validateSearch: signupSearchSchema,
   beforeLoad: () => {
+    if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
     if (!isLoading && isAuthenticated) {
       throw redirect({ to: "/dashboard" });
