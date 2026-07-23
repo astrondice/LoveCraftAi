@@ -38,7 +38,7 @@ projectsRouter.get("/", async (c) => {
     .from("projects")
     .select(`
       *,
-      published_sites (id, slug, views, status)
+      websites (id, slug, title, website_type, preview_image, published_html, status)
     `)
     .eq("user_id", userId)
     .is("deleted_at", null)

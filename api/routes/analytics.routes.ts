@@ -16,11 +16,11 @@ analyticsRouter.get("/:siteId", authMiddleware, async (c) => {
 
   // Verify ownership
   const { data: site } = await supabase
-    .from("published_sites")
-    .select("id, views, unique_visitors")
+    .from("websites")
+    .select("id, title, status")
     .eq("id", siteId)
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
   if (!site) return c.json({ error: "Not found" }, 404);
 

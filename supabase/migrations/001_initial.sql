@@ -114,7 +114,7 @@ CREATE INDEX idx_versions_project ON public.project_versions(project_id);
 -- ════════════════════════════════════════════════════════════════
 -- PUBLISHED SITES
 -- ════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS public.published_sites (
+CREATE TABLE IF NOT EXISTS public.websites (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
   user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -134,13 +134,13 @@ CREATE TABLE IF NOT EXISTS public.published_sites (
   CONSTRAINT slug_format CHECK (slug ~ '^[a-z0-9-]+$' OR slug IS NULL)
 );
 
-CREATE INDEX idx_sites_slug      ON public.published_sites(slug);
-CREATE INDEX idx_sites_project   ON public.published_sites(project_id);
-CREATE INDEX idx_sites_user      ON public.published_sites(user_id);
-CREATE INDEX idx_sites_status    ON public.published_sites(status);
+CREATE INDEX idx_sites_slug      ON public.websites(slug);
+CREATE INDEX idx_sites_project   ON public.websites(project_id);
+CREATE INDEX idx_sites_user      ON public.websites(user_id);
+CREATE INDEX idx_sites_status    ON public.websites(status);
 
 CREATE TRIGGER sites_updated_at
-  BEFORE UPDATE ON public.published_sites
+  BEFORE UPDATE ON public.websites
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ════════════════════════════════════════════════════════════════
@@ -168,7 +168,7 @@ CREATE INDEX idx_assets_project ON public.assets(project_id);
 -- ════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.analytics_events (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  site_id     UUID NOT NULL REFERENCES public.published_sites(id) ON DELETE CASCADE,
+  site_id     UUID NOT NULL REFERENCES public.websites(id) ON DELETE CASCADE,
   event_type  TEXT NOT NULL
                 CHECK (event_type IN ('view', 'download', 'qr_scan', 'share')),
   country     TEXT,
@@ -263,12 +263,12 @@ CREATE POLICY "versions_read_own" ON public.project_versions FOR SELECT
   ));
 
 -- Published Sites
-ALTER TABLE public.published_sites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.websites ENABLE ROW LEVEL SECURITY;
 -- Public can read active public sites
-CREATE POLICY "public_read_active_sites" ON public.published_sites FOR SELECT
+CREATE POLICY "public_read_active_sites" ON public.websites FOR SELECT
   USING (status = 'active' AND is_public = TRUE);
 -- Owner can do everything
-CREATE POLICY "owners_manage_sites" ON public.published_sites
+CREATE POLICY "owners_manage_sites" ON public.websites
   USING (auth.uid() = user_id);
 
 -- Assets
@@ -281,7 +281,7 @@ CREATE POLICY "analytics_insert_public" ON public.analytics_events FOR INSERT
   WITH CHECK (true);
 CREATE POLICY "analytics_read_owner" ON public.analytics_events FOR SELECT
   USING (site_id IN (
-    SELECT id FROM public.published_sites WHERE user_id = auth.uid()
+    SELECT id FROM public.websites WHERE user_id = auth.uid()
   ));
 
 -- Custom Domains

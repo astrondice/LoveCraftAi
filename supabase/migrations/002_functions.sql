@@ -6,7 +6,7 @@
 CREATE OR REPLACE FUNCTION increment_site_views(site_id UUID)
 RETURNS VOID AS $$
 BEGIN
-  UPDATE public.published_sites
+  UPDATE public.websites
   SET views = views + 1
   WHERE id = site_id AND status = 'active';
 END;
@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_projects_user_status
   WHERE deleted_at IS NULL;
 
 CREATE INDEX IF NOT EXISTS idx_sites_user_status
-  ON public.published_sites(user_id, status);
+  ON public.websites(user_id, status);
 
 -- ── Analytics: partitioning-ready index ──────────────────────────
 CREATE INDEX IF NOT EXISTS idx_analytics_site_type_time

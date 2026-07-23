@@ -2,12 +2,12 @@
 // /dashboard — User's published sites management dashboard
 // Matches LoveCraft.ai glass aesthetic perfectly
 // ─────────────────────────────────────────────────────────────────
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
+import { useAuthStore } from "@/store/auth.store";
 import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
 import { SiteCard } from "@/features/dashboard/SiteCard";
-import { LoginModal } from "@/features/auth/LoginModal";
 import { useAuth } from "@/hooks/use-auth";
 import { publishService } from "@/services/publish.service";
 import type { PublishedSite } from "@/types";
@@ -25,6 +25,16 @@ import { Logo } from "@/components/ui/Logo";
 import { MagneticButton } from "@/components/ui/MagneticButton";
 
 export const Route = createFileRoute("/dashboard")({
+  beforeLoad: () => {
+    const { isAuthenticated, isLoading } = useAuthStore.getState();
+    console.log("[LoveCraft Auth] dashboard beforeLoad — isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
+    // While auth is still initializing, let the component render its loading
+    // spinner. The useEffect inside DashboardPage handles the post-init redirect.
+    if (!isLoading && !isAuthenticated) {
+      console.log("[LoveCraft Auth] Not authenticated — redirecting to /login");
+      throw redirect({ to: "/login", search: { redirect: "/dashboard" } });
+    }
+  },
   head: () => ({
     meta: [
       { title: "My Sites — LoveCraft AI" },
@@ -35,10 +45,10 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function DashboardPage() {
+  const navigate = useNavigate();
   const { user, isAuthenticated, isLoading: authLoading, signOut } = useAuth();
   const [sites, setSites] = useState<PublishedSite[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
-  const [showLogin, setShowLogin] = useState(false);
 
   const loadSites = async () => {
     setLoadingSites(true);
@@ -52,14 +62,18 @@ function DashboardPage() {
     }
   };
 
+  // Post-init guard: if auth finishes loading with no user, redirect to /login.
+  // This closes the race window where beforeLoad saw isLoading:true and passed.
   useEffect(() => {
-    if (!authLoading) {
-      if (!isAuthenticated) {
-        setShowLogin(true);
-      } else {
-        void loadSites();
-      }
+    if (!authLoading && !isAuthenticated) {
+      console.log("[LoveCraft Auth] Dashboard: auth resolved with no user — redirecting");
+      void navigate({ to: "/login", search: { redirect: "/dashboard" } });
+      return;
     }
+    if (!authLoading && isAuthenticated) {
+      void loadSites();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, authLoading]);
 
   const handleDelete = async (id: string) => {
@@ -74,20 +88,11 @@ function DashboardPage() {
   const handleSignOut = async () => {
     await signOut();
     setSites([]);
-    setShowLogin(true);
   };
 
   return (
     <div className="relative min-h-screen pb-20">
       <BackgroundFX />
-
-      {/* Auth Modal */}
-      <LoginModal
-        isOpen={showLogin && !isAuthenticated}
-        onClose={() => setShowLogin(false)}
-        onSuccess={() => { setShowLogin(false); void loadSites(); }}
-        title="Sign in to manage your sites"
-      />
 
       {/* Top bar */}
       <div className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-charcoal/50 border-b border-ivory/10">
@@ -127,14 +132,7 @@ function DashboardPage() {
                 </button>
               </div>
             )}
-            {!isAuthenticated && !authLoading && (
-              <button
-                onClick={() => setShowLogin(true)}
-                className="label-caps text-ivory/60 hover:text-ivory transition-colors text-[10px]"
-              >
-                Sign In
-              </button>
-            )}
+  
           </div>
         </div>
       </div>
@@ -180,25 +178,7 @@ function DashboardPage() {
           </div>
         )}
 
-        {/* Auth prompt */}
-        {!authLoading && !isAuthenticated && !showLogin && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-32"
-          >
-            <Heart className="text-gold mx-auto mb-4" size={44} />
-            <h2 className="font-display text-3xl text-ivory mb-3">
-              Sign in to see your sites
-            </h2>
-            <p className="text-ivory/50 mb-8">
-              All your published love stories in one place.
-            </p>
-            <button onClick={() => setShowLogin(true)}>
-              <MagneticButton variant="gold">Sign In to Continue</MagneticButton>
-            </button>
-          </motion.div>
-        )}
+
 
         {/* Empty state */}
         <AnimatePresence>

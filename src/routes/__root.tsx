@@ -7,7 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
@@ -118,12 +118,18 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const initialize = useAuthStore((s) => s.initialize);
 
-  // Initialize auth state once on mount
+  // useRef ensures we call initialize() exactly once on mount,
+  // regardless of how many times this component re-renders.
+  const initialized = useRef(false);
+
   useEffect(() => {
-    void initialize();
-  }, [initialize]);
+    if (initialized.current) return;
+    initialized.current = true;
+    console.log("[LoveCraft Auth] Root mount — calling initialize()");
+    void useAuthStore.getState().initialize();
+  }, []);
+
 
   return (
     <QueryClientProvider client={queryClient}>

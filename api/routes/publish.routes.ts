@@ -1,5 +1,7 @@
 // ─────────────────────────────────────────────────────────────────
 // Publish API Routes
+// Uses exact public.websites schema:
+// (id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html, created_at, updated_at)
 // ─────────────────────────────────────────────────────────────────
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
@@ -8,21 +10,19 @@ import type { Bindings } from "../index";
 
 export const publishRouter = new Hono<{ Bindings: Bindings }>();
 
-// GET /api/publish/sites/:id — Public: fetch site metadata
+// GET /api/publish/sites/:id — Public: fetch website metadata
 publishRouter.get("/sites/:id", async (c) => {
   const { id } = c.req.param();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { data, error } = await supabase
-    .from("published_sites")
-    .select("id, slug, title, html_url, og_image_url, is_public, views, status, created_at")
+    .from("websites")
+    .select("id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html, created_at, updated_at")
     .eq("id", id)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (error || !data) return c.json({ error: "Site not found" }, 404);
-  if (!data.is_public) return c.json({ error: "This site is private" }, 403);
-
   return c.json(data);
 });
 
@@ -31,8 +31,7 @@ publishRouter.post("/sites/:id/view", async (c) => {
   const { id } = c.req.param();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Increment view counter (non-blocking)
-  await Promise.all([
+  await Promise.allSettled([
     supabase.rpc("increment_site_views", { site_id: id }),
     supabase.from("analytics_events").insert({
       site_id: id,
@@ -44,14 +43,14 @@ publishRouter.post("/sites/:id/view", async (c) => {
   return c.json({ ok: true });
 });
 
-// DELETE /api/publish/sites/:id — Auth: delete published site
+// DELETE /api/publish/sites/:id — Auth: delete website
 publishRouter.delete("/sites/:id", authMiddleware, async (c) => {
   const userId = c.get("userId") as string;
   const { id } = c.req.param();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { error } = await supabase
-    .from("published_sites")
+    .from("websites")
     .update({ status: "deleted" })
     .eq("id", id)
     .eq("user_id", userId);
@@ -60,41 +59,40 @@ publishRouter.delete("/sites/:id", authMiddleware, async (c) => {
   return c.body(null, 204);
 });
 
-// GET /api/publish/my-sites — Auth: list user's sites
+// GET /api/publish/my-sites — Auth: list user's websites
 publishRouter.get("/my-sites", authMiddleware, async (c) => {
   const userId = c.get("userId") as string;
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { data, error } = await supabase
-    .from("published_sites")
+    .from("websites")
     .select("*")
     .eq("user_id", userId)
     .neq("status", "deleted")
     .order("created_at", { ascending: false });
 
   if (error) return c.json({ error: error.message }, 500);
-  return c.json(data);
+  return c.json(data ?? []);
 });
 
-// PATCH /api/publish/sites/:id — Auth: update site settings
+// PATCH /api/publish/sites/:id — Auth: update website settings
 publishRouter.patch("/sites/:id", authMiddleware, async (c) => {
   const userId = c.get("userId") as string;
   const { id } = c.req.param();
-  const body = await c.req.json<{ is_public?: boolean; slug?: string }>();
+  const body = await c.req.json<{ slug?: string; title?: string; website_type?: string }>();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  // Validate slug if provided
   if (body.slug && !/^[a-z0-9-]+$/.test(body.slug)) {
     return c.json({ error: "Invalid slug format" }, 400);
   }
 
   const { data, error } = await supabase
-    .from("published_sites")
+    .from("websites")
     .update(body)
     .eq("id", id)
     .eq("user_id", userId)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) return c.json({ error: error.message }, 500);
   return c.json(data);

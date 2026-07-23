@@ -1,26 +1,32 @@
 // ─────────────────────────────────────────────────────────────────
-// Publish Types
+// Publish Types — Aligned with public.websites schema
 // ─────────────────────────────────────────────────────────────────
 
 export type SiteStatus = "active" | "inactive" | "deleted";
 
-export interface PublishedSite {
+export interface Website {
   id: string;
-  project_id: string;
   user_id: string;
-  version_id: string | null;
-  slug: string | null;
   title: string;
-  html_url: string;
-  og_image_url: string | null;
-  is_public: boolean;
-  password_hash: string | null;
-  views: number;
-  unique_visitors: number;
+  slug: string | null;
+  website_type: string | null;
   status: SiteStatus;
+  blueprint_json: Record<string, unknown> | null;
+  preview_image: string | null;
+  published_html: string;
   created_at: string;
   updated_at: string;
+
+  // Optional alias getters for backward compatibility
+  project_id?: string;
+  html_url?: string;
+  og_image_url?: string | null;
+  views?: number;
+  unique_visitors?: number;
+  is_public?: boolean;
 }
+
+export type PublishedSite = Website;
 
 export type PublishPhase =
   | "idle"
@@ -38,7 +44,7 @@ export interface PublishProgress {
 }
 
 export interface PublishResult {
-  site: PublishedSite;
+  site: Website;
   url: string;   // https://lovecraft.ai/sites/{id}
   slug: string | null;
 }

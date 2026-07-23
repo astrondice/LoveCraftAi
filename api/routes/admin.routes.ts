@@ -30,7 +30,7 @@ adminRouter.get("/sites", async (c) => {
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { data, error } = await supabase
-    .from("published_sites")
+    .from("websites")
     .select("*, users(email, name)")
     .order("created_at", { ascending: false })
     .limit(100);
@@ -45,7 +45,7 @@ adminRouter.delete("/sites/:id", async (c) => {
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { error } = await supabase
-    .from("published_sites")
+    .from("websites")
     .update({ status: "deleted" })
     .eq("id", id);
 
