@@ -36,10 +36,7 @@ export const authService = {
       provider,
       options: {
         redirectTo: `${getOrigin()}/auth/callback`,
-        queryParams:
-          provider === "google"
-            ? { access_type: "offline", prompt: "consent" }
-            : {},
+        queryParams: provider === "google" ? { access_type: "offline", prompt: "consent" } : {},
       },
     });
     if (error) throw new Error(error.message);
@@ -134,10 +131,7 @@ export const authService = {
     const profilePayload = {
       id: authUser.id,
       email: authUser.email ?? "",
-      name:
-        authUser.user_metadata?.full_name ??
-        authUser.user_metadata?.name ??
-        null,
+      name: authUser.user_metadata?.full_name ?? authUser.user_metadata?.name ?? null,
       avatar_url: authUser.user_metadata?.avatar_url ?? null,
       role: "user" as const,
       plan: "free" as const,
@@ -159,7 +153,9 @@ export const authService = {
     }
 
     if (!upserted) {
-      console.warn("[LoveCraft Auth] getCurrentUser: profile upsert skipped — using fallback user object");
+      console.warn(
+        "[LoveCraft Auth] getCurrentUser: profile upsert skipped — using fallback user object",
+      );
       return authService._buildFallbackUser(authUser);
     }
 
@@ -172,7 +168,11 @@ export const authService = {
    * Used as a last-resort fallback so an authenticated user is never
    * treated as unauthenticated due to a profile table issue.
    */
-  _buildFallbackUser(authUser: { id: string; email?: string; user_metadata?: Record<string, unknown> }): User {
+  _buildFallbackUser(authUser: {
+    id: string;
+    email?: string;
+    user_metadata?: Record<string, unknown>;
+  }): User {
     const now = new Date().toISOString();
     return {
       id: authUser.id,
@@ -190,13 +190,16 @@ export const authService = {
   },
 
   /** Subscribe to auth state changes */
-  onAuthStateChange(
-    callback: (user: User | null) => void,
-  ): { unsubscribe: () => void } {
+  onAuthStateChange(callback: (user: User | null) => void): { unsubscribe: () => void } {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("[LoveCraft Auth] onAuthStateChange event:", _event, "| user:", session?.user?.email ?? "none");
+      console.log(
+        "[LoveCraft Auth] onAuthStateChange event:",
+        _event,
+        "| user:",
+        session?.user?.email ?? "none",
+      );
       if (session?.user) {
         const user = await authService.getCurrentUser();
         callback(user);

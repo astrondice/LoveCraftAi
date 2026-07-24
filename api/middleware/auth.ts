@@ -14,12 +14,12 @@ export async function authMiddleware(c: AppContext, next: Next) {
   }
 
   const token = authorization.slice(7);
-  const supabase = createClient(
-    c.env.SUPABASE_URL,
-    c.env.SUPABASE_SERVICE_ROLE_KEY,
-  );
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { data: { user }, error } = await supabase.auth.getUser(token);
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser(token);
   if (error || !user) {
     return c.json({ error: "Invalid or expired token" }, 401);
   }
@@ -38,16 +38,9 @@ export async function adminMiddleware(c: AppContext, next: Next) {
   const userId = c.get("userId") as string | undefined;
   if (!userId) return c.json({ error: "Unauthorized" }, 401);
 
-  const supabase = createClient(
-    c.env.SUPABASE_URL,
-    c.env.SUPABASE_SERVICE_ROLE_KEY,
-  );
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { data } = await supabase
-    .from("users")
-    .select("role")
-    .eq("id", userId)
-    .single();
+  const { data } = await supabase.from("users").select("role").eq("id", userId).single();
 
   if (!data || !["admin", "superadmin"].includes(data.role)) {
     return c.json({ error: "Forbidden" }, 403);

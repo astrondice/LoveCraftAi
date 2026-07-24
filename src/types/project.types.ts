@@ -3,24 +3,18 @@
 // ─────────────────────────────────────────────────────────────────
 
 export type ProjectStatus = "draft" | "published" | "archived";
-export type ThemeId =
-  | "cosmic"
-  | "memories"
-  | "rose"
-  | "dream"
-  | "cinematic"
-  | "proposal";
+export type ThemeId = "cosmic" | "memories" | "rose" | "dream" | "cinematic" | "proposal";
 
 export interface PhotoAsset {
   name: string;
   dataUrl: string; // local preview (base64)
-  url?: string;    // Supabase Storage URL after upload
+  url?: string; // Supabase Storage URL after upload
 }
 
 export interface MediaAsset {
   name: string;
   dataUrl: string; // local preview
-  url?: string;    // Supabase Storage URL after upload
+  url?: string; // Supabase Storage URL after upload
 }
 
 export interface Project {

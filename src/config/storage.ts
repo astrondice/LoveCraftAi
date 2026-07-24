@@ -36,9 +36,7 @@ export const storagePaths = {
   video: (userId: string, projectId: string, filename: string) =>
     `${userId}/${projectId}/video/${filename}`,
 
-  html: (userId: string, siteId: string) =>
-    `${userId}/sites/${siteId}/index.html`,
+  html: (userId: string, siteId: string) => `${userId}/sites/${siteId}/index.html`,
 
-  thumbnail: (userId: string, siteId: string) =>
-    `${userId}/sites/${siteId}/thumbnail.jpg`,
+  thumbnail: (userId: string, siteId: string) => `${userId}/sites/${siteId}/thumbnail.jpg`,
 } as const;

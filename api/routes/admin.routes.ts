@@ -44,10 +44,7 @@ adminRouter.delete("/sites/:id", async (c) => {
   const { id } = c.req.param();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
-  const { error } = await supabase
-    .from("websites")
-    .update({ status: "deleted" })
-    .eq("id", id);
+  const { error } = await supabase.from("websites").update({ status: "deleted" }).eq("id", id);
 
   if (error) return c.json({ error: error.message }, 500);
   return c.body(null, 204);

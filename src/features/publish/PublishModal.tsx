@@ -21,10 +21,10 @@ type Stage = "idle" | "auth" | "publishing" | "success" | "error";
 
 const PHASE_LABELS: Record<string, string> = {
   "uploading-assets": "Uploading your memories…",
-  "building-html":    "Crafting your love story…",
-  "uploading-html":   "Publishing to the cloud…",
-  "saving-record":    "Saving your site…",
-  done:               "Your love story is live! 💖",
+  "building-html": "Crafting your love story…",
+  "uploading-html": "Publishing to the cloud…",
+  "saving-record": "Saving your site…",
+  done: "Your love story is live! 💖",
 };
 
 export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
@@ -43,10 +43,8 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       setStage("publishing");
       setError(null);
       try {
-        const res = await publishService.publish(
-          { ...input, projectId: undefined },
-          userId,
-          (p) => setProgress(p),
+        const res = await publishService.publish({ ...input, projectId: undefined }, userId, (p) =>
+          setProgress(p),
         );
         setResult(res);
         setStage("success");
@@ -74,7 +72,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     } else {
       void startPublish(user.id);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   const handleAuthSuccess = () => {
@@ -186,9 +184,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
                     className="text-center"
                   >
                     <AlertCircle className="text-destructive mx-auto mb-4" size={44} />
-                    <h2 className="font-display text-2xl text-ivory mb-2">
-                      Something went wrong
-                    </h2>
+                    <h2 className="font-display text-2xl text-ivory mb-2">Something went wrong</h2>
                     <p className="text-ivory/60 text-sm mb-6">{error}</p>
                     <div className="flex gap-3 justify-center">
                       <button

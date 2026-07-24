@@ -130,7 +130,6 @@ function RootComponent() {
     void useAuthStore.getState().initialize();
   }, []);
 
-
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />

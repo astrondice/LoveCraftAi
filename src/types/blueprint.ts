@@ -42,7 +42,7 @@ export interface WebsiteBlueprint {
   typography: TypographyPairing;
   animations: AnimationStyle;
   layout: "minimal" | "magazine" | "cinematic" | "standard";
-  
+
   seo: {
     title: string;
     description: string;

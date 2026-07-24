@@ -22,7 +22,7 @@ export const analyticsService = {
         site_id: input.site_id,
         event_type: input.event_type,
         device: detectDevice(),
-        referrer: input.referrer ?? (document.referrer || null),
+        referrer: input.referrer ?? (typeof document !== "undefined" ? document.referrer : null),
       });
     } catch {
       // Analytics should never throw
@@ -70,9 +70,7 @@ export const analyticsService = {
     // Views over time (last 30 days, grouped by date)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const recentViews = views.filter(
-      (e) => new Date(e.created_at) >= thirtyDaysAgo,
-    );
+    const recentViews = views.filter((e) => new Date(e.created_at) >= thirtyDaysAgo);
     const byDate = new Map<string, number>();
     recentViews.forEach((e) => {
       const d = e.created_at.slice(0, 10);
@@ -87,9 +85,10 @@ export const analyticsService = {
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
       top_cities: [],
-      device_breakdown: Array.from(deviceMap.entries()).map(
-        ([device, count]) => ({ device: device as "desktop", count }),
-      ),
+      device_breakdown: Array.from(deviceMap.entries()).map(([device, count]) => ({
+        device: device as "desktop",
+        count,
+      })),
       referrer_breakdown: [],
       views_over_time: Array.from(byDate.entries())
         .map(([date, views]) => ({ date, views }))

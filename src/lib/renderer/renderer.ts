@@ -40,7 +40,9 @@ function injectFonts(blueprint: WebsiteBlueprint): string {
 
   if (uniqueFonts.length === 0) return "";
 
-  const query = uniqueFonts.map(f => `family=${f}:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700`).join("&");
+  const query = uniqueFonts
+    .map((f) => `family=${f}:ital,wght@0,300;0,400;0,700;1,300;1,400;1,700`)
+    .join("&");
   return `
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -50,8 +52,8 @@ function injectFonts(blueprint: WebsiteBlueprint): string {
 
 export function renderBlueprint(blueprint: WebsiteBlueprint): string {
   const seo = blueprint.seo;
-  const audioTag = blueprint.music 
-    ? `<audio id="bg-audio" src="${blueprint.music.url}" loop preload="auto"></audio>` 
+  const audioTag = blueprint.music
+    ? `<audio id="bg-audio" src="${blueprint.music.url}" loop preload="auto"></audio>`
     : "";
 
   const sections = [];
