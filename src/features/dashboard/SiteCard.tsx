@@ -31,6 +31,7 @@ interface SiteCardProps {
   onPreview?: (site: PublishedSite) => void;
   onAnalytics?: (site: PublishedSite) => void;
   onPublish?: (site: PublishedSite) => void;
+  onRename?: (site: PublishedSite) => void;
 }
 
 export function SiteCard({
@@ -41,6 +42,7 @@ export function SiteCard({
   onPreview,
   onAnalytics,
   onPublish,
+  onRename,
 }: SiteCardProps) {
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -197,6 +199,15 @@ export function SiteCard({
                   className="flex items-center gap-2 px-3 py-2 text-ivory/80 hover:text-ivory hover:bg-ivory/10 text-xs w-full text-left"
                 >
                   <UploadCloud size={13} className="text-gold" /> Publish / Republish
+                </button>
+                <button
+                  onClick={() => {
+                    onRename?.(site);
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-ivory/80 hover:text-ivory hover:bg-ivory/10 text-xs w-full text-left"
+                >
+                  <Edit3 size={13} /> Rename Title
                 </button>
                 <button
                   onClick={() => {

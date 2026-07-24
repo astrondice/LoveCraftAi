@@ -325,6 +325,31 @@ export const publishService = {
     }
   },
 
+  /** Rename a site title */
+  async renameSite(siteId: string, newTitle: string): Promise<void> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from("websites")
+        .update({ title: newTitle, updated_at: new Date().toISOString() })
+        .eq("id", siteId);
+
+      if (error) throw new Error(`Failed to rename website: ${error.message}`);
+      return;
+    }
+
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
+      const site = sites.find((s) => s.id === siteId);
+      if (site) {
+        site.title = newTitle;
+        site.updated_at = new Date().toISOString();
+        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
+      }
+    }
+  },
+
   /** Duplicate a site for the current user */
   async duplicateSite(siteId: string): Promise<Website> {
     const existing = await this.getSite(siteId);

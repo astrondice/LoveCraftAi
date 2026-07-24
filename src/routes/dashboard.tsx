@@ -10,6 +10,7 @@ import { BackgroundFX } from "@/components/animations/BackgroundFX";
 import { SiteCard } from "@/features/dashboard/SiteCard";
 import { AnalyticsModal } from "@/features/dashboard/AnalyticsModal";
 import { SitePreviewModal } from "@/features/dashboard/SitePreviewModal";
+import { RenameModal } from "@/features/dashboard/RenameModal";
 import { PublishModal } from "@/features/publish/PublishModal";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,6 +48,7 @@ function DashboardPage() {
   const [analyticsSite, setAnalyticsSite] = useState<PublishedSite | null>(null);
   const [previewSite, setPreviewSite] = useState<PublishedSite | null>(null);
   const [republishSite, setRepublishSite] = useState<PublishedSite | null>(null);
+  const [renameSiteObj, setRenameSiteObj] = useState<PublishedSite | null>(null);
 
   const loadSites = async () => {
     setLoadingSites(true);
@@ -59,7 +61,7 @@ function DashboardPage() {
       setSites(sorted);
     } catch {
       toast.error("Failed to load your sites");
-    } fontally: {
+    } finally {
       setLoadingSites(false);
     }
   };
@@ -105,6 +107,19 @@ function DashboardPage() {
     if (site.website_type) lovecraftStore.setTheme(site.website_type);
     lovecraftStore.setStep(0);
     void navigate({ to: "/generate" });
+  };
+
+  const handleRename = async (siteId: string, newTitle: string) => {
+    try {
+      await publishService.renameSite(siteId, newTitle);
+      setSites((prev) =>
+        prev.map((s) => (s.id === siteId ? { ...s, title: newTitle } : s)),
+      );
+      toast.success("Website renamed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Rename failed");
+      throw err;
+    }
   };
 
   const handleSignOut = async () => {
@@ -264,6 +279,7 @@ function DashboardPage() {
                     onPreview={(s) => setPreviewSite(s)}
                     onAnalytics={(s) => setAnalyticsSite(s)}
                     onPublish={(s) => setRepublishSite(s)}
+                    onRename={(s) => setRenameSiteObj(s)}
                   />
                 </motion.div>
               ))}
@@ -284,6 +300,14 @@ function DashboardPage() {
         site={previewSite}
         isOpen={!!previewSite}
         onClose={() => setPreviewSite(null)}
+      />
+
+      {/* Rename Modal */}
+      <RenameModal
+        site={renameSiteObj}
+        isOpen={!!renameSiteObj}
+        onClose={() => setRenameSiteObj(null)}
+        onRename={handleRename}
       />
 
       {/* Republish Modal */}
