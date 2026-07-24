@@ -35,13 +35,18 @@ app.use(
   "*",
   cors({
     origin: (origin) => {
-      const allowed = [
-        "https://lovecraft.ai",
-        "https://www.lovecraft.ai",
-        "http://localhost:3000",
-        "http://localhost:5173",
-      ];
-      return allowed.includes(origin) ? origin : "https://lovecraft.ai";
+      if (!origin) return "https://love-craft-ai.vercel.app";
+      if (
+        origin.endsWith(".vercel.app") ||
+        origin === "https://love-craft-ai.vercel.app" ||
+        origin === "https://lovecraft.ai" ||
+        origin === "https://www.lovecraft.ai" ||
+        /^http:\/\/localhost(:\d+)?$/.test(origin) ||
+        /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(origin)
+      ) {
+        return origin;
+      }
+      return "https://love-craft-ai.vercel.app";
     },
     allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
