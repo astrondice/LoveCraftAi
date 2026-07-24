@@ -224,8 +224,12 @@ export const publishService = {
       }
     }
 
+    // Use the actual origin so shared links work in both dev and production
+    // without requiring VITE_APP_URL to be configured.
     const appUrl =
-      import.meta.env.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+      typeof window !== "undefined"
+        ? window.location.origin
+        : (import.meta.env.VITE_APP_URL || "https://love-craft-ai.vercel.app");
     const url = `${appUrl}/sites/${siteId}`;
 
     onProgress({ phase: "done", percent: 100, message: "Your love story is live! 💖" });

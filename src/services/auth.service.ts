@@ -23,10 +23,14 @@ import { supabase } from "@/lib/supabase";
 import type { OAuthProvider, LoginCredentials, User } from "@/types";
 
 function getOrigin(): string {
+  // Always use the actual current origin in the browser — works correctly
+  // in both dev (http://localhost:8080) and production (https://love-craft-ai.vercel.app)
+  // with zero configuration.
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
-  return import.meta.env.VITE_APP_URL || "http://localhost:3000";
+  // SSR fallback (server-side rendering only) — never used for OAuth redirectTo
+  return import.meta.env.VITE_APP_URL || "https://love-craft-ai.vercel.app";
 }
 
 export const authService = {
