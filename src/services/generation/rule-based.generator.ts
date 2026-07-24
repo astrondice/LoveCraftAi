@@ -7,6 +7,7 @@ import {
   AnimationStyle,
   MediaAsset,
 } from "../../types/blueprint";
+import { THEMES } from "../../lib/themes";
 
 const defaultPalette: ColorPalette = {
   background: "#0a0a0a",
@@ -94,12 +95,21 @@ export class RuleBasedGenerator implements IWebsiteGenerator {
 
     const title = `${input.name1 || "You"} & ${input.name2 || "Them"}`;
 
+    const selectedTheme = THEMES[input.themeId] ?? THEMES.cosmic;
+    const themePalette: ColorPalette = {
+      background: selectedTheme.bg,
+      text: "#faf9f6",
+      primary: selectedTheme.c1,
+      secondary: selectedTheme.c2,
+      accent: selectedTheme.c3,
+    };
+
     return {
       version: "1.0.0",
       websiteType,
       theme: input.themeId,
       mood: "romantic",
-      colorPalette: defaultPalette, // In a full implementation, these map to themeId
+      colorPalette: themePalette,
       typography: defaultTypography,
       animations: "cinematic",
       layout,

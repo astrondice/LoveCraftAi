@@ -135,16 +135,24 @@ export function renderBlueprint(blueprint: WebsiteBlueprint): string {
   <script>
     ${BASE_JS}
     
-    // Default abstract background effect (can be abstracted into animation engine later)
+    // Particle FX per theme
+    var themeId = "${blueprint.theme || "cosmic"}";
     var c=document.getElementById('bgfx'),x=c.getContext('2d'),W,H;
     function R(){W=c.width=innerWidth;H=c.height=innerHeight}R();addEventListener('resize',R);
     var parts=[];
-    for(var i=0;i<100;i++)parts.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.5+0.5,vy:-(Math.random()*0.1+0.05)});
-    function frame(t){
+    for(var i=0;i<120;i++) parts.push({
+      x:Math.random()*W,
+      y:Math.random()*H,
+      r:Math.random()*2+0.5,
+      vy:themeId==='sakura'?(Math.random()*0.3+0.1):-(Math.random()*0.15+0.05),
+      vx:themeId==='sakura'?(Math.random()*0.2-0.1):0
+    });
+    function frame(){
       x.clearRect(0,0,W,H);
       parts.forEach(function(p){
-        p.y+=p.vy;if(p.y<0)p.y=H;
-        x.fillStyle='rgba(255,255,255,'+(0.1 + Math.random()*0.1)+')';
+        p.y+=p.vy; p.x+=p.vx;
+        if(p.y<0) p.y=H; if(p.y>H) p.y=0;
+        x.fillStyle=themeId==='sakura'?'rgba(244,114,182,0.3)':themeId==='golden'?'rgba(245,158,11,0.3)':themeId==='moonlight'?'rgba(56,189,248,0.3)':'rgba(255,255,255,0.15)';
         x.beginPath();x.arc(p.x,p.y,p.r,0,Math.PI*2);x.fill();
       });
       requestAnimationFrame(frame);
