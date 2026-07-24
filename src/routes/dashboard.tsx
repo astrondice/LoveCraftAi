@@ -11,13 +11,17 @@ import { SiteCard } from "@/features/dashboard/SiteCard";
 import { AnalyticsModal } from "@/features/dashboard/AnalyticsModal";
 import { SitePreviewModal } from "@/features/dashboard/SitePreviewModal";
 import { RenameModal } from "@/features/dashboard/RenameModal";
+import { TrashBinModal } from "@/features/dashboard/TrashBinModal";
+import { ExportModal } from "@/features/dashboard/ExportModal";
+import { PublishHistoryModal } from "@/features/dashboard/PublishHistoryModal";
 import { PublishModal } from "@/features/publish/PublishModal";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
+import { QuotaBadge } from "@/components/ui/QuotaBadge";
 import { useAuth } from "@/hooks/use-auth";
 import { publishService } from "@/services/publish.service";
 import { useLovecraft } from "@/lib/store";
 import type { PublishedSite, PublishInput } from "@/types";
-import { LayoutDashboard, Globe, Plus, Sparkles, Heart, LogOut } from "lucide-react";
+import { LayoutDashboard, Globe, Plus, Sparkles, Heart, LogOut, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/Logo";
 import { MagneticButton } from "@/components/ui/MagneticButton";
@@ -49,6 +53,9 @@ function DashboardPage() {
   const [previewSite, setPreviewSite] = useState<PublishedSite | null>(null);
   const [republishSite, setRepublishSite] = useState<PublishedSite | null>(null);
   const [renameSiteObj, setRenameSiteObj] = useState<PublishedSite | null>(null);
+  const [exportSiteObj, setExportSiteObj] = useState<PublishedSite | null>(null);
+  const [historySiteObj, setHistorySiteObj] = useState<PublishedSite | null>(null);
+  const [showTrashBin, setShowTrashBin] = useState(false);
 
   const loadSites = async () => {
     setLoadingSites(true);
@@ -162,7 +169,15 @@ function DashboardPage() {
             <span className="label-caps text-ivory/80 text-[10px]">My Websites</span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <QuotaBadge />
+            <button
+              onClick={() => setShowTrashBin(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-ivory/5 border border-ivory/10 hover:border-ivory/30 text-ivory/70 hover:text-ivory label-caps text-[10px] transition-all"
+              title="Open Trash Bin"
+            >
+              <Trash2 size={12} className="text-destructive/80" /> Trash Bin
+            </button>
             {user && (
               <div className="flex items-center gap-3">
                 {user.avatar_url ? (
@@ -280,6 +295,8 @@ function DashboardPage() {
                     onAnalytics={(s) => setAnalyticsSite(s)}
                     onPublish={(s) => setRepublishSite(s)}
                     onRename={(s) => setRenameSiteObj(s)}
+                    onExport={(s) => setExportSiteObj(s)}
+                    onHistory={(s) => setHistorySiteObj(s)}
                   />
                 </motion.div>
               ))}
@@ -308,6 +325,28 @@ function DashboardPage() {
         isOpen={!!renameSiteObj}
         onClose={() => setRenameSiteObj(null)}
         onRename={handleRename}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        site={exportSiteObj}
+        isOpen={!!exportSiteObj}
+        onClose={() => setExportSiteObj(null)}
+      />
+
+      {/* Publish History Modal */}
+      <PublishHistoryModal
+        site={historySiteObj}
+        isOpen={!!historySiteObj}
+        onClose={() => setHistorySiteObj(null)}
+        onRollbackComplete={loadSites}
+      />
+
+      {/* Trash Bin Modal */}
+      <TrashBinModal
+        isOpen={showTrashBin}
+        onClose={() => setShowTrashBin(false)}
+        onRestored={loadSites}
       />
 
       {/* Republish Modal */}

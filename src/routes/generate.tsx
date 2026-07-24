@@ -12,6 +12,8 @@ import { buildReadme } from "@/lib/buildSite";
 import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
 import { PublishModal } from "@/features/publish/PublishModal";
+import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
+import { draftRecovery } from "@/lib/draft-recovery";
 import { useAuth } from "@/hooks/use-auth";
 import { getPendingPublish } from "@/lib/pending-publish";
 import {
@@ -48,8 +50,39 @@ const STEPS = ["The Story", "Memories", "Universe", "The Moment"];
 function GeneratePage() {
   const s = useLovecraft();
   const [showResume, setShowResume] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
   const { user, isAuthenticated } = useAuth();
+
+  // 30-second Auto-save timer
+  useEffect(() => {
+    if (!s.name1 && !s.name2) return;
+
+    const saveTimer = setInterval(async () => {
+      setSaveStatus("saving");
+      try {
+        const savedDate = await draftRecovery.saveDraft(
+          {
+            name1: s.name1,
+            name2: s.name2,
+            date: s.date,
+            duration: s.duration,
+            memory: s.memory,
+            message: s.message,
+            themeId: s.theme,
+          },
+          user?.id,
+        );
+        setLastSavedAt(savedDate);
+        setSaveStatus("saved");
+      } catch {
+        setSaveStatus("error");
+      }
+    }, 30000);
+
+    return () => clearInterval(saveTimer);
+  }, [s.name1, s.name2, s.date, s.duration, s.memory, s.message, s.theme, user?.id]);
 
   // Auto-resume publish after OAuth redirect
   useEffect(() => {
@@ -122,14 +155,17 @@ function GeneratePage() {
             <Logo className="h-8 md:h-10" />
           </Link>
           <StepNav />
-          <button
-            onClick={() => {
-              if (confirm("Start fresh? Your current story will be cleared.")) s.reset();
-            }}
-            className="label-caps text-ivory/50 hover:text-ivory transition-colors text-[10px]"
-          >
-            Reset
-          </button>
+          <div className="flex items-center gap-3">
+            <AutoSaveIndicator status={saveStatus} lastSavedAt={lastSavedAt} />
+            <button
+              onClick={() => {
+                if (confirm("Start fresh? Your current story will be cleared.")) s.reset();
+              }}
+              className="label-caps text-ivory/50 hover:text-ivory transition-colors text-[10px]"
+            >
+              Reset
+            </button>
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,8 @@ import {
   Edit3,
   Play,
   UploadCloud,
+  Download,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -32,6 +34,8 @@ interface SiteCardProps {
   onAnalytics?: (site: PublishedSite) => void;
   onPublish?: (site: PublishedSite) => void;
   onRename?: (site: PublishedSite) => void;
+  onExport?: (site: PublishedSite) => void;
+  onHistory?: (site: PublishedSite) => void;
 }
 
 export function SiteCard({
@@ -43,6 +47,8 @@ export function SiteCard({
   onAnalytics,
   onPublish,
   onRename,
+  onExport,
+  onHistory,
 }: SiteCardProps) {
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -226,6 +232,24 @@ export function SiteCard({
                   className="flex items-center gap-2 px-3 py-2 text-ivory/80 hover:text-ivory hover:bg-ivory/10 text-xs w-full text-left"
                 >
                   <BarChart3 size={13} /> View Analytics
+                </button>
+                <button
+                  onClick={() => {
+                    onHistory?.(site);
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-ivory/80 hover:text-ivory hover:bg-ivory/10 text-xs w-full text-left"
+                >
+                  <History size={13} /> Publish History
+                </button>
+                <button
+                  onClick={() => {
+                    onExport?.(site);
+                    setMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 text-ivory/80 hover:text-ivory hover:bg-ivory/10 text-xs w-full text-left"
+                >
+                  <Download size={13} /> Export Package
                 </button>
                 <button
                   onClick={() => {

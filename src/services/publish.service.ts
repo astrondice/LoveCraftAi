@@ -9,6 +9,17 @@ import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
 import type { PublishInput, PublishResult, PublishProgress, Website } from "@/types";
 
+export interface Deployment {
+  id: string;
+  site_id: string;
+  user_id: string;
+  version_num: number;
+  html_url: string;
+  title: string;
+  snapshot_json?: Record<string, unknown>;
+  created_at: string;
+}
+
 const isBrowser = typeof window !== "undefined";
 
 // ── ID generators ─────────────────────────────────────────────────
@@ -192,6 +203,19 @@ export const publishService = {
       } as Website;
 
       console.log("[Publish] Website record created:", site.id);
+
+      // Record deployment history snapshot
+      try {
+        await supabase.from("deployments").insert({
+          site_id: site.id,
+          user_id: userId,
+          title: site.title,
+          html_url: htmlUrl,
+          snapshot_json: blueprint as unknown as Record<string, unknown>,
+        });
+      } catch {
+        // Non-blocking deployment record
+      }
     } else {
       // Local storage fallback when Supabase is not configured
       site = {
@@ -299,12 +323,12 @@ export const publishService = {
       : [];
   },
 
-  /** Delete a website record (soft delete) */
+  /** Move a website record to trash (30-day retention) */
   async deleteSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
       const { error } = await supabase
         .from("websites")
-        .update({ status: "deleted" })
+        .update({ status: "trash", updated_at: new Date().toISOString() })
         .eq("id", siteId);
 
       if (error) {
@@ -317,11 +341,110 @@ export const publishService = {
       const sites = JSON.parse(
         localStorage.getItem("lovecraft-published-sites") ?? "[]",
       ) as Website[];
+      const target = sites.find((s) => s.id === siteId);
+      if (target) {
+        target.status = "trash";
+        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
+      }
+    }
+  },
+
+  /** Get all trashed websites */
+  async getTrashedSites(): Promise<Website[]> {
+    if (isSupabaseConfigured) {
+      const { data } = await supabase
+        .from("websites")
+        .select("*")
+        .eq("status", "trash")
+        .order("updated_at", { ascending: false });
+      return (data ?? []) as Website[];
+    }
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
+      return sites.filter((s) => s.status === "trash");
+    }
+    return [];
+  },
+
+  /** Restore site from trash */
+  async restoreSite(siteId: string): Promise<void> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from("websites")
+        .update({ status: "active", updated_at: new Date().toISOString() })
+        .eq("id", siteId);
+
+      if (error) throw new Error(`Failed to restore website: ${error.message}`);
+      return;
+    }
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
+      const target = sites.find((s) => s.id === siteId);
+      if (target) {
+        target.status = "active";
+        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
+      }
+    }
+  },
+
+  /** Permanently delete site from storage & DB */
+  async permanentDeleteSite(siteId: string): Promise<void> {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from("websites").delete().eq("id", siteId);
+      if (error) throw new Error(`Failed to permanently delete website: ${error.message}`);
+      return;
+    }
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
       localStorage.setItem(
         "lovecraft-published-sites",
         JSON.stringify(sites.filter((s) => s.id !== siteId)),
       );
       sessionStorage.removeItem(`lovecraft-site-${siteId}`);
+    }
+  },
+
+  /** Get deployments / publish history for a site */
+  async getDeployments(siteId: string): Promise<Deployment[]> {
+    if (isSupabaseConfigured) {
+      const { data } = await supabase
+        .from("deployments")
+        .select("*")
+        .eq("site_id", siteId)
+        .order("created_at", { ascending: false });
+      return (data ?? []) as Deployment[];
+    }
+    return [];
+  },
+
+  /** Rollback site to a previous deployment */
+  async rollbackDeployment(siteId: string, deploymentId: string): Promise<void> {
+    if (isSupabaseConfigured) {
+      const { data: dep } = await supabase
+        .from("deployments")
+        .select("*")
+        .eq("id", deploymentId)
+        .single();
+
+      if (!dep) throw new Error("Deployment snapshot not found");
+
+      const { error } = await supabase
+        .from("websites")
+        .update({
+          title: dep.title,
+          published_html: dep.html_url,
+          blueprint_json: dep.snapshot_json,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", siteId);
+
+      if (error) throw new Error(`Rollback failed: ${error.message}`);
     }
   },
 
