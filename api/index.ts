@@ -14,14 +14,24 @@ import { adminRouter } from "./routes/admin.routes";
 
 export type Bindings = {
   // Cloudflare R2
-  ASSETS_BUCKET: R2Bucket;
+  ASSETS_BUCKET: import("@cloudflare/workers-types").R2Bucket;
   // Environment secrets
   SUPABASE_URL: string;
   SUPABASE_SERVICE_ROLE_KEY: string;
   R2_PUBLIC_URL: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+export type Variables = {
+  userId: string;
+  userEmail: string;
+};
+
+export type AppEnv = {
+  Bindings: Bindings;
+  Variables: Variables;
+};
+
+const app = new Hono<AppEnv>();
 
 // ── Global middleware ────────────────────────────────────────────
 app.use("*", logger());

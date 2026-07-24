@@ -4,9 +4,9 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { adminMiddleware } from "../middleware/auth";
-import type { Bindings } from "../index";
+import type { AppEnv } from "../index";
 
-export const adminRouter = new Hono<{ Bindings: Bindings }>();
+export const adminRouter = new Hono<AppEnv>();
 
 // All admin routes require admin role
 adminRouter.use("*", adminMiddleware);

@@ -4,9 +4,9 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { authMiddleware } from "../middleware/auth";
-import type { Bindings } from "../index";
+import type { AppEnv } from "../index";
 
-export const analyticsRouter = new Hono<{ Bindings: Bindings }>();
+export const analyticsRouter = new Hono<AppEnv>();
 
 // GET /api/analytics/:siteId — Auth: analytics summary for a site
 analyticsRouter.get("/:siteId", authMiddleware, async (c) => {
@@ -17,7 +17,7 @@ analyticsRouter.get("/:siteId", authMiddleware, async (c) => {
   // Verify ownership
   const { data: site } = await supabase
     .from("websites")
-    .select("id, title, status")
+    .select("id, title, status, views, unique_visitors")
     .eq("id", siteId)
     .eq("user_id", userId)
     .maybeSingle();
