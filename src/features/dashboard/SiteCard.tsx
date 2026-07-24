@@ -24,6 +24,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { PublishedSite } from "@/types";
 import { THEMES } from "@/lib/themes";
+import { SeoScoreBadge } from "@/components/ui/SeoScoreBadge";
 
 interface SiteCardProps {
   site: PublishedSite;
@@ -137,10 +138,13 @@ export function SiteCard({
         <div className="p-5">
           {/* Stats bar */}
           <div className="flex items-center justify-between mb-4 text-xs text-ivory/60">
-            <span className="flex items-center gap-1.5">
-              <Eye size={13} className="text-gold" />
-              {(site.views ?? 0).toLocaleString()} views
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="flex items-center gap-1.5">
+                <Eye size={13} className="text-gold" />
+                {(site.views ?? 0).toLocaleString()} views
+              </span>
+              <SeoScoreBadge score={98} />
+            </div>
             <button
               onClick={() => onAnalytics?.(site)}
               className="flex items-center gap-1 text-gold hover:underline text-[11px] font-medium"

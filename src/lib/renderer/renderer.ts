@@ -63,6 +63,20 @@ export function renderBlueprint(blueprint: WebsiteBlueprint): string {
   if (blueprint.timeline) sections.push(renderTimeline(blueprint.timeline));
   if (blueprint.videoSection) sections.push(renderVideo(blueprint.videoSection));
 
+  const jsonLdData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": seo.title,
+    "description": seo.description,
+    "image": seo.openGraph.image || "",
+    "inLanguage": "en-US",
+    "mainEntity": {
+      "@type": "CreativeWork",
+      "headline": blueprint.hero.title,
+      "dateCreated": new Date().toISOString(),
+    },
+  };
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -71,12 +85,25 @@ export function renderBlueprint(blueprint: WebsiteBlueprint): string {
   <title>${seo.title}</title>
   <meta name="description" content="${seo.description}" />
   <meta name="keywords" content="${seo.keywords.join(", ")}" />
+  <meta name="robots" content="index, follow" />
   
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
   <meta property="og:title" content="${seo.title}" />
   <meta property="og:description" content="${seo.description}" />
   ${seo.openGraph.siteName ? `<meta property="og:site_name" content="${seo.openGraph.siteName}" />` : ""}
   ${seo.openGraph.image ? `<meta property="og:image" content="${seo.openGraph.image}" />` : ""}
+
+  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="${seo.title}" />
+  <meta name="twitter:description" content="${seo.description}" />
+  ${seo.openGraph.image ? `<meta name="twitter:image" content="${seo.openGraph.image}" />` : ""}
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+    ${JSON.stringify(jsonLdData)}
+  </script>
 
   ${injectFonts(blueprint)}
   ${injectStyles(blueprint)}

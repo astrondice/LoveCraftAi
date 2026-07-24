@@ -1,0 +1,17 @@
+{
+  "short_name": "LoveCraft AI",
+  "name": "LoveCraft AI — Cinematic Digital Love Stories",
+  "description": "Turn your romance, memories, and photos into a stunning custom digital website.",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0B0C10",
+  "theme_color": "#D4AF37",
+  "display": "standalone",
+  "orientation": "portrait"
+}

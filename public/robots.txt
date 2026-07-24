@@ -1,0 +1,11 @@
+# LoveCraft AI Search Engine Directives
+User-agent: *
+Allow: /
+Allow: /sites/
+Disallow: /dashboard
+Disallow: /api/
+Disallow: /login
+Disallow: /signup
+Disallow: /auth/
+
+Sitemap: https://lovecraft.ai/sitemap.xml
