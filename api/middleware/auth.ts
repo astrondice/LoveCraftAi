@@ -3,8 +3,11 @@
 // ─────────────────────────────────────────────────────────────────
 import type { Context, Next } from "hono";
 import { createClient } from "@supabase/supabase-js";
+import type { Bindings, Variables } from "../index";
 
-export async function authMiddleware(c: Context, next: Next) {
+type AppContext = Context<{ Bindings: Bindings; Variables: Variables }>;
+
+export async function authMiddleware(c: AppContext, next: Next) {
   const authorization = c.req.header("Authorization");
   if (!authorization?.startsWith("Bearer ")) {
     return c.json({ error: "Unauthorized" }, 401);
@@ -29,7 +32,7 @@ export async function authMiddleware(c: Context, next: Next) {
 }
 
 /** Admin-only middleware (requires role = 'admin') */
-export async function adminMiddleware(c: Context, next: Next) {
+export async function adminMiddleware(c: AppContext, next: Next) {
   await authMiddleware(c, async () => {});
 
   const userId = c.get("userId") as string | undefined;

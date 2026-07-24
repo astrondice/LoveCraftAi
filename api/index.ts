@@ -21,7 +21,12 @@ export type Bindings = {
   R2_PUBLIC_URL: string;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+export type Variables = {
+  userId: string;
+  userEmail: string;
+};
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // ── Global middleware ────────────────────────────────────────────
 app.use("*", logger());

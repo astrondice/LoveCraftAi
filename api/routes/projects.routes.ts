@@ -6,9 +6,9 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import { authMiddleware } from "../middleware/auth";
-import type { Bindings } from "../index";
+import type { Bindings, Variables } from "../index";
 
-export const projectsRouter = new Hono<{ Bindings: Bindings }>();
+export const projectsRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // All project routes require auth
 projectsRouter.use("*", authMiddleware);

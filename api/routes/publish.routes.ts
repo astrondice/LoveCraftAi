@@ -6,9 +6,9 @@
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
 import { authMiddleware } from "../middleware/auth";
-import type { Bindings } from "../index";
+import type { Bindings, Variables } from "../index";
 
-export const publishRouter = new Hono<{ Bindings: Bindings }>();
+export const publishRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
 // GET /api/publish/sites/:id — Public: fetch website metadata
 publishRouter.get("/sites/:id", async (c) => {
