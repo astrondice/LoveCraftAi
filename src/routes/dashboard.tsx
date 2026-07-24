@@ -5,18 +5,34 @@
 import { createFileRoute, Link, redirect, useNavigate } from "@tanstack/react-router";
 import { useAuthStore } from "@/store/auth.store";
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
 import { SiteCard } from "@/features/dashboard/SiteCard";
-import { AnalyticsModal } from "@/features/dashboard/AnalyticsModal";
-import { SitePreviewModal } from "@/features/dashboard/SitePreviewModal";
-import { RenameModal } from "@/features/dashboard/RenameModal";
-import { TrashBinModal } from "@/features/dashboard/TrashBinModal";
-import { ExportModal } from "@/features/dashboard/ExportModal";
-import { PublishHistoryModal } from "@/features/dashboard/PublishHistoryModal";
-import { PublishModal } from "@/features/publish/PublishModal";
 import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { QuotaBadge } from "@/components/ui/QuotaBadge";
+
+// Lazy-loaded modal components for code splitting & bundle optimization
+const AnalyticsModal = lazy(() =>
+  import("@/features/dashboard/AnalyticsModal").then((m) => ({ default: m.AnalyticsModal }))
+);
+const SitePreviewModal = lazy(() =>
+  import("@/features/dashboard/SitePreviewModal").then((m) => ({ default: m.SitePreviewModal }))
+);
+const RenameModal = lazy(() =>
+  import("@/features/dashboard/RenameModal").then((m) => ({ default: m.RenameModal }))
+);
+const TrashBinModal = lazy(() =>
+  import("@/features/dashboard/TrashBinModal").then((m) => ({ default: m.TrashBinModal }))
+);
+const ExportModal = lazy(() =>
+  import("@/features/dashboard/ExportModal").then((m) => ({ default: m.ExportModal }))
+);
+const PublishHistoryModal = lazy(() =>
+  import("@/features/dashboard/PublishHistoryModal").then((m) => ({ default: m.PublishHistoryModal }))
+);
+const PublishModal = lazy(() =>
+  import("@/features/publish/PublishModal").then((m) => ({ default: m.PublishModal }))
+);
 import { useAuth } from "@/hooks/use-auth";
 import { publishService } from "@/services/publish.service";
 import { useLovecraft } from "@/lib/store";
@@ -305,58 +321,61 @@ function DashboardPage() {
         </AnimatePresence>
       </div>
 
-      {/* Analytics Modal */}
-      <AnalyticsModal
-        site={analyticsSite}
-        isOpen={!!analyticsSite}
-        onClose={() => setAnalyticsSite(null)}
-      />
-
-      {/* Site Preview Modal */}
-      <SitePreviewModal
-        site={previewSite}
-        isOpen={!!previewSite}
-        onClose={() => setPreviewSite(null)}
-      />
-
-      {/* Rename Modal */}
-      <RenameModal
-        site={renameSiteObj}
-        isOpen={!!renameSiteObj}
-        onClose={() => setRenameSiteObj(null)}
-        onRename={handleRename}
-      />
-
-      {/* Export Modal */}
-      <ExportModal
-        site={exportSiteObj}
-        isOpen={!!exportSiteObj}
-        onClose={() => setExportSiteObj(null)}
-      />
-
-      {/* Publish History Modal */}
-      <PublishHistoryModal
-        site={historySiteObj}
-        isOpen={!!historySiteObj}
-        onClose={() => setHistorySiteObj(null)}
-        onRollbackComplete={loadSites}
-      />
-
-      {/* Trash Bin Modal */}
-      <TrashBinModal
-        isOpen={showTrashBin}
-        onClose={() => setShowTrashBin(false)}
-        onRestored={loadSites}
-      />
-
-      {/* Republish Modal */}
-      {republishInput && (
-        <PublishModal
-          isOpen={!!republishSite}
-          onClose={() => setRepublishSite(null)}
-          input={republishInput}
+      {/* Lazy-loaded Modals Wrapped in Suspense */}
+      <Suspense fallback={null}>
+        {/* Analytics Modal */}
+        <AnalyticsModal
+          site={analyticsSite}
+          isOpen={!!analyticsSite}
+          onClose={() => setAnalyticsSite(null)}
         />
-      )}
+
+        {/* Site Preview Modal */}
+        <SitePreviewModal
+          site={previewSite}
+          isOpen={!!previewSite}
+          onClose={() => setPreviewSite(null)}
+        />
+
+        {/* Rename Modal */}
+        <RenameModal
+          site={renameSiteObj}
+          isOpen={!!renameSiteObj}
+          onClose={() => setRenameSiteObj(null)}
+          onRename={handleRename}
+        />
+
+        {/* Export Modal */}
+        <ExportModal
+          site={exportSiteObj}
+          isOpen={!!exportSiteObj}
+          onClose={() => setExportSiteObj(null)}
+        />
+
+        {/* Publish History Modal */}
+        <PublishHistoryModal
+          site={historySiteObj}
+          isOpen={!!historySiteObj}
+          onClose={() => setHistorySiteObj(null)}
+          onRollbackComplete={loadSites}
+        />
+
+        {/* Trash Bin Modal */}
+        <TrashBinModal
+          isOpen={showTrashBin}
+          onClose={() => setShowTrashBin(false)}
+          onRestored={loadSites}
+        />
+
+        {/* Republish Modal */}
+        {republishInput && (
+          <PublishModal
+            isOpen={!!republishSite}
+            onClose={() => setRepublishSite(null)}
+            input={republishInput}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

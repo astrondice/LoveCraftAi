@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, lazy, Suspense } from "react";
 import JSZip from "jszip";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -11,15 +11,23 @@ import { THEME_LIST, THEMES } from "@/lib/themes";
 import { buildReadme } from "@/lib/buildSite";
 import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
-import { PublishModal } from "@/features/publish/PublishModal";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { draftRecovery } from "@/lib/draft-recovery";
 import { useAuth } from "@/hooks/use-auth";
 import { getPendingPublish } from "@/lib/pending-publish";
 import { TemplateCard } from "@/features/templates/TemplateCard";
-import { TemplatePreviewModal } from "@/features/templates/TemplatePreviewModal";
-import { CompareTemplatesModal } from "@/features/templates/CompareTemplatesModal";
 import { TEMPLATE_LIST, TEMPLATE_CATEGORIES, TEMPLATES_DATA, type TemplateSpec } from "@/lib/templates.data";
+
+// Lazy-loaded modal components for code splitting & bundle optimization
+const PublishModal = lazy(() =>
+  import("@/features/publish/PublishModal").then((m) => ({ default: m.PublishModal }))
+);
+const TemplatePreviewModal = lazy(() =>
+  import("@/features/templates/TemplatePreviewModal").then((m) => ({ default: m.TemplatePreviewModal }))
+);
+const CompareTemplatesModal = lazy(() =>
+  import("@/features/templates/CompareTemplatesModal").then((m) => ({ default: m.CompareTemplatesModal }))
+);
 import {
   Upload,
   Music,
@@ -776,22 +784,23 @@ function ThemeStep() {
         </div>
       )}
 
-      {/* ── Full-Screen Live Device Preview Modal ─────────────────────────────── */}
-      <TemplatePreviewModal
-        template={previewTemplate}
-        isOpen={!!previewTemplate}
-        onClose={() => setPreviewTemplate(null)}
-        onUseTemplate={handleUseTemplate}
-      />
+      {/* ── Lazy-Loaded Modals Wrapped in Suspense ─────────────────────────────── */}
+      <Suspense fallback={null}>
+        <TemplatePreviewModal
+          template={previewTemplate}
+          isOpen={!!previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          onUseTemplate={handleUseTemplate}
+        />
 
-      {/* ── Side-by-Side Template Comparison Modal ─────────────────────────────── */}
-      <CompareTemplatesModal
-        t1={compareList[0] || null}
-        t2={compareList[1] || null}
-        isOpen={showCompareModal}
-        onClose={() => setShowCompareModal(false)}
-        onSelectTemplate={handleUseTemplate}
-      />
+        <CompareTemplatesModal
+          t1={compareList[0] || null}
+          t2={compareList[1] || null}
+          isOpen={showCompareModal}
+          onClose={() => setShowCompareModal(false)}
+          onSelectTemplate={handleUseTemplate}
+        />
+      </Suspense>
     </div>
   );
 }
@@ -972,12 +981,14 @@ function GenerateStep() {
           </button>
         </div>
 
-        {/* Publish Modal */}
-        <PublishModal
-          isOpen={publishOpen}
-          onClose={() => setPublishOpen(false)}
-          input={publishInput}
-        />
+        {/* Publish Modal Wrapped in Suspense */}
+        <Suspense fallback={null}>
+          <PublishModal
+            isOpen={publishOpen}
+            onClose={() => setPublishOpen(false)}
+            input={publishInput}
+          />
+        </Suspense>
       </div>
     );
   }
@@ -1056,11 +1067,13 @@ function GenerateStep() {
       </div>
 
       {/* Publish Modal */}
-      <PublishModal
-        isOpen={publishOpen}
-        onClose={() => setPublishOpen(false)}
-        input={publishInput}
-      />
+      <Suspense fallback={null}>
+        <PublishModal
+          isOpen={publishOpen}
+          onClose={() => setPublishOpen(false)}
+          input={publishInput}
+        />
+      </Suspense>
     </div>
   );
 }

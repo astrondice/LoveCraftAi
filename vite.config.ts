@@ -8,42 +8,42 @@ export default defineConfig({
   nitro: {
     preset: process.env.VERCEL ? "vercel" : process.env.NITRO_PRESET || "node-server",
   },
-  // Raw Vite options go inside `vite:` — LovableViteTanstackOptions passes these through.
+  // Raw Vite options passed through to Vite configuration
   vite: {
     build: {
-      // Raise the warning threshold (kB). Chunks above this will still warn.
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 600,
       rollupOptions: {
         output: {
           manualChunks: (id) => {
-            // React core
+            // 1. React Core
             if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
               return "vendor-react";
             }
-            // TanStack ecosystem
+            // 2. TanStack ecosystem
             if (id.includes("node_modules/@tanstack")) {
               return "vendor-tanstack";
             }
-            // Radix UI components
-            if (id.includes("node_modules/@radix-ui")) {
-              return "vendor-radix";
-            }
-            // Animation / 3D
-            if (id.includes("node_modules/framer-motion") || id.includes("node_modules/gsap")) {
+            // 3. Animation Libraries
+            if (id.includes("node_modules/framer-motion") || id.includes("node_modules/lenis") || id.includes("node_modules/gsap")) {
               return "vendor-animation";
             }
+            // 4. 3D Graphics
             if (id.includes("node_modules/three")) {
               return "vendor-three";
             }
-            // Supabase
+            // 5. Supabase Client
             if (id.includes("node_modules/@supabase")) {
               return "vendor-supabase";
             }
-            // Charts
-            if (id.includes("node_modules/recharts") || id.includes("node_modules/d3")) {
-              return "vendor-charts";
+            // 6. Lucide Icons
+            if (id.includes("node_modules/lucide-react")) {
+              return "vendor-lucide";
             }
-            // Everything else in node_modules goes into a shared vendor chunk
+            // 7. Zip Exporter
+            if (id.includes("node_modules/jszip")) {
+              return "vendor-jszip";
+            }
+            // 8. Shared Node Modules
             if (id.includes("node_modules")) {
               return "vendor-misc";
             }
@@ -53,4 +53,3 @@ export default defineConfig({
     },
   },
 });
-
