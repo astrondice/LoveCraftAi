@@ -8,10 +8,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
 import { SiteCard } from "@/features/dashboard/SiteCard";
+import { AnalyticsModal } from "@/features/dashboard/AnalyticsModal";
+import { SitePreviewModal } from "@/features/dashboard/SitePreviewModal";
+import { PublishModal } from "@/features/publish/PublishModal";
+import { SkeletonCard } from "@/components/ui/SkeletonCard";
 import { useAuth } from "@/hooks/use-auth";
 import { publishService } from "@/services/publish.service";
-import type { PublishedSite } from "@/types";
-import { LayoutDashboard, Globe, Plus, Sparkles, Heart, Loader2, LogOut } from "lucide-react";
+import { useLovecraft } from "@/lib/store";
+import type { PublishedSite, PublishInput } from "@/types";
+import { LayoutDashboard, Globe, Plus, Sparkles, Heart, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/Logo";
 import { MagneticButton } from "@/components/ui/MagneticButton";
@@ -20,14 +25,7 @@ export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
     if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
-    console.log(
-      "[LoveCraft Auth] dashboard beforeLoad — isLoading:",
-      isLoading,
-      "isAuthenticated:",
-      isAuthenticated,
-    );
     if (!isLoading && !isAuthenticated) {
-      console.log("[LoveCraft Auth] Not authenticated — redirecting to /login");
       throw redirect({ to: "/login", search: { redirect: "/dashboard" } });
     }
   },
@@ -40,26 +38,34 @@ export const Route = createFileRoute("/dashboard")({
 function DashboardPage() {
   const navigate = useNavigate();
   const { user, isAuthenticated, isLoading: authLoading, signOut } = useAuth();
+  const lovecraftStore = useLovecraft();
+
   const [sites, setSites] = useState<PublishedSite[]>([]);
   const [loadingSites, setLoadingSites] = useState(true);
+
+  // Modals state
+  const [analyticsSite, setAnalyticsSite] = useState<PublishedSite | null>(null);
+  const [previewSite, setPreviewSite] = useState<PublishedSite | null>(null);
+  const [republishSite, setRepublishSite] = useState<PublishedSite | null>(null);
 
   const loadSites = async () => {
     setLoadingSites(true);
     try {
       const data = await publishService.getUserSites();
-      setSites(data);
+      // Ensure newest website appears first
+      const sorted = [...data].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      );
+      setSites(sorted);
     } catch {
       toast.error("Failed to load your sites");
-    } finally {
+    } fontally: {
       setLoadingSites(false);
     }
   };
 
-  // Post-init guard: if auth finishes loading with no user, redirect to /login.
-  // This closes the race window where beforeLoad saw isLoading:true and passed.
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      console.log("[LoveCraft Auth] Dashboard: auth resolved with no user — redirecting");
       void navigate({ to: "/login", search: { redirect: "/dashboard" } });
       return;
     }
@@ -73,15 +79,57 @@ function DashboardPage() {
     try {
       await publishService.deleteSite(id);
       setSites((prev) => prev.filter((s) => s.id !== id));
+      toast.success("Site deleted successfully");
     } catch {
       toast.error("Failed to delete site");
     }
+  };
+
+  const handleDuplicate = async (id: string) => {
+    try {
+      toast.loading("Duplicating website…", { id: "dup" });
+      const dup = await publishService.duplicateSite(id);
+      setSites((prev) => [dup, ...prev]);
+      toast.success("Website duplicated!", { id: "dup" });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Duplication failed", { id: "dup" });
+    }
+  };
+
+  const handleEdit = (site: PublishedSite) => {
+    // Populate store with website blueprint data and navigate to editor
+    const bp = (site.blueprint_json ?? {}) as Record<string, unknown>;
+    const names = site.title.split("&");
+    if (names[0]) lovecraftStore.setField("name1", names[0].trim());
+    if (names[1]) lovecraftStore.setField("name2", names[1].trim());
+    if (site.website_type) lovecraftStore.setTheme(site.website_type);
+    lovecraftStore.setStep(0);
+    void navigate({ to: "/generate" });
   };
 
   const handleSignOut = async () => {
     await signOut();
     setSites([]);
   };
+
+  // Input for Republish Modal
+  const republishInput: PublishInput | null = republishSite
+    ? {
+        name1: republishSite.title.split("&")[0]?.trim() ?? "You",
+        name2: republishSite.title.split("&")[1]?.trim() ?? "Them",
+        date: "",
+        duration: "",
+        memory: "",
+        message: "",
+        themeId: republishSite.website_type || "cosmic",
+        photos: republishSite.preview_image
+          ? [{ name: "photo-0", dataUrl: republishSite.preview_image }]
+          : [],
+        music: null,
+        video: null,
+        projectId: republishSite.id,
+      }
+    : null;
 
   return (
     <div className="relative min-h-screen pb-20">
@@ -96,7 +144,7 @@ function DashboardPage() {
 
           <div className="flex items-center gap-2">
             <LayoutDashboard size={14} className="text-gold" />
-            <span className="label-caps text-ivory/80 text-[10px]">My Sites</span>
+            <span className="label-caps text-ivory/80 text-[10px]">My Websites</span>
           </div>
 
           <div className="flex items-center gap-4">
@@ -113,15 +161,15 @@ function DashboardPage() {
                     <Heart size={14} className="text-gold" />
                   </div>
                 )}
-                <span className="hidden md:block text-ivory/60 text-sm">
+                <span className="hidden md:block text-ivory/60 text-sm font-medium">
                   {user.name ?? user.email}
                 </span>
                 <button
                   onClick={handleSignOut}
-                  className="text-ivory/40 hover:text-ivory transition-colors"
+                  className="text-ivory/40 hover:text-ivory transition-colors p-1"
                   title="Sign out"
                 >
-                  <LogOut size={14} />
+                  <LogOut size={15} />
                 </button>
               </div>
             )}
@@ -137,13 +185,12 @@ function DashboardPage() {
           transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
           className="mb-12"
         >
-          <span className="label-caps text-gold">Your Collection</span>
+          <span className="label-caps text-gold">My Websites</span>
           <h1 className="font-display text-4xl md:text-6xl text-ivory mt-3">
             Published <span className="italic gold-shimmer">Love Stories</span>
           </h1>
           <p className="mt-4 text-ivory/60 max-w-xl">
-            Every love story you've published lives here. Share, manage, and track how many hearts
-            you've touched.
+            Every love story you've published lives here. Share, edit, duplicate, and track live analytics.
           </p>
         </motion.div>
 
@@ -151,21 +198,23 @@ function DashboardPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <Globe size={16} className="text-gold" />
-            <span className="text-ivory/60 text-sm">
-              {sites.length} site{sites.length !== 1 ? "s" : ""} published
+            <span className="text-ivory/70 text-sm font-medium">
+              {sites.length} website{sites.length !== 1 ? "s" : ""}
             </span>
           </div>
           <Link to="/generate">
             <MagneticButton variant="gold">
-              <Plus size={14} /> Create New
+              <Plus size={14} /> Create New Website
             </MagneticButton>
           </Link>
         </div>
 
-        {/* Loading */}
+        {/* Loading skeletons */}
         {(authLoading || loadingSites) && (
-          <div className="flex items-center justify-center py-32">
-            <Loader2 size={32} className="text-gold animate-spin" />
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {[1, 2, 3, 4].map((i) => (
+              <SkeletonCard key={i} />
+            ))}
           </div>
         )}
 
@@ -176,24 +225,23 @@ function DashboardPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="text-center py-32"
+              className="text-center py-32 glass-panel rounded-3xl p-12 max-w-2xl mx-auto"
             >
-              <Sparkles className="text-gold mx-auto mb-4" size={44} />
-              <h2 className="font-display text-3xl text-ivory mb-3">No sites published yet</h2>
+              <Sparkles className="text-gold mx-auto mb-4" size={48} />
+              <h2 className="font-display text-3xl text-ivory mb-3">No websites created yet</h2>
               <p className="text-ivory/50 mb-8 max-w-md mx-auto">
-                Create your first cinematic love website and publish it with one click. It'll appear
-                here instantly.
+                Craft an unforgettable cinematic love website in minutes. Your created websites will appear here.
               </p>
               <Link to="/generate">
                 <MagneticButton variant="gold">
-                  <Plus size={14} /> Create Your First Site
+                  <Plus size={14} /> Create Your First Website
                 </MagneticButton>
               </Link>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Sites grid */}
+        {/* Sites grid (Newest first) */}
         <AnimatePresence>
           {!authLoading && !loadingSites && sites.length > 0 && (
             <motion.div
@@ -206,15 +254,46 @@ function DashboardPage() {
                   key={site.id}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.06 }}
+                  transition={{ delay: i * 0.05 }}
                 >
-                  <SiteCard site={site} onDelete={handleDelete} />
+                  <SiteCard
+                    site={site}
+                    onDelete={handleDelete}
+                    onDuplicate={handleDuplicate}
+                    onEdit={handleEdit}
+                    onPreview={(s) => setPreviewSite(s)}
+                    onAnalytics={(s) => setAnalyticsSite(s)}
+                    onPublish={(s) => setRepublishSite(s)}
+                  />
                 </motion.div>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      {/* Analytics Modal */}
+      <AnalyticsModal
+        site={analyticsSite}
+        isOpen={!!analyticsSite}
+        onClose={() => setAnalyticsSite(null)}
+      />
+
+      {/* Site Preview Modal */}
+      <SitePreviewModal
+        site={previewSite}
+        isOpen={!!previewSite}
+        onClose={() => setPreviewSite(null)}
+      />
+
+      {/* Republish Modal */}
+      {republishInput && (
+        <PublishModal
+          isOpen={!!republishSite}
+          onClose={() => setRepublishSite(null)}
+          input={republishInput}
+        />
+      )}
     </div>
   );
 }

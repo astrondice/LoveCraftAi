@@ -20,11 +20,13 @@ interface PublishModalProps {
 type Stage = "idle" | "auth" | "publishing" | "success" | "error";
 
 const PHASE_LABELS: Record<string, string> = {
+  "preparing": "Preparing your assets…",
   "uploading-assets": "Uploading your memories…",
-  "building-html": "Crafting your love story…",
-  "uploading-html": "Publishing to the cloud…",
-  "saving-record": "Saving your site…",
-  done: "Your love story is live! 💖",
+  "optimizing": "Optimizing media for ultra-fast load…",
+  "building-html": "Crafting your cinematic love site…",
+  "uploading-html": "Publishing to the global CDN…",
+  "saving-record": "Saving your website record…",
+  "done": "Your love story is live! 💖",
 };
 
 import {

@@ -27,16 +27,24 @@ export type StorageBucket = (typeof STORAGE_BUCKETS)[keyof typeof STORAGE_BUCKET
  * Path helpers — keep path conventions consistent across all upload calls.
  */
 export const storagePaths = {
+  image: (userId: string, filename: string, projectId?: string) =>
+    projectId
+      ? `users/${userId}/images/${projectId}/${filename}`
+      : `users/${userId}/images/${filename}`,
+
   photo: (userId: string, projectId: string, filename: string) =>
-    `${userId}/${projectId}/photos/${filename}`,
+    `users/${userId}/images/${projectId}/${filename}`,
 
   audio: (userId: string, projectId: string, filename: string) =>
-    `${userId}/${projectId}/audio/${filename}`,
+    `users/${userId}/audio/${projectId}/${filename}`,
 
   video: (userId: string, projectId: string, filename: string) =>
-    `${userId}/${projectId}/video/${filename}`,
+    `users/${userId}/videos/${projectId}/${filename}`,
 
-  html: (userId: string, siteId: string) => `${userId}/sites/${siteId}/index.html`,
+  asset: (userId: string, filename: string) =>
+    `users/${userId}/assets/${filename}`,
 
-  thumbnail: (userId: string, siteId: string) => `${userId}/sites/${siteId}/thumbnail.jpg`,
+  html: (userId: string, siteId: string) => `users/${userId}/sites/${siteId}/index.html`,
+
+  thumbnail: (userId: string, siteId: string) => `users/${userId}/sites/${siteId}/thumbnail.jpg`,
 } as const;

@@ -325,6 +325,63 @@ export const publishService = {
     }
   },
 
+  /** Duplicate a site for the current user */
+  async duplicateSite(siteId: string): Promise<Website> {
+    const existing = await this.getSite(siteId);
+    if (!existing) throw new Error("Site not found");
+
+    const newSiteId = generateUUID();
+    const newTitle = `${existing.site.title} (Copy)`;
+    const newSlug = generateSlug(existing.site.title, "copy");
+
+    if (isSupabaseConfigured) {
+      const payload = {
+        id: newSiteId,
+        user_id: existing.site.user_id,
+        title: newTitle,
+        slug: newSlug,
+        website_type: existing.site.website_type || "cosmic",
+        status: "active",
+        blueprint_json: existing.site.blueprint_json ?? {},
+        preview_image: existing.site.preview_image || existing.site.og_image_url || null,
+        published_html: existing.site.published_html || existing.site.html_url || "",
+      };
+
+      const { data, error } = await supabase
+        .from("websites")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) throw new Error(`Failed to duplicate site: ${error.message}`);
+      return {
+        ...data,
+        html_url: data.published_html,
+        og_image_url: data.preview_image,
+      } as Website;
+    }
+
+    const duplicated: Website = {
+      ...existing.site,
+      id: newSiteId,
+      title: newTitle,
+      slug: newSlug,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
+      sites.unshift(duplicated);
+      localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
+      sessionStorage.setItem(`lovecraft-site-${newSiteId}`, existing.html);
+    }
+
+    return duplicated;
+  },
+
   /** Increment view counter */
   async trackView(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {

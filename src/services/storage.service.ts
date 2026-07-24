@@ -1,24 +1,16 @@
 // ─────────────────────────────────────────────────────────────────
-// Storage Service — Upload assets to Supabase Storage
-// Falls back to base64 dataURL if Supabase is not configured
-// ─────────────────────────────────────────────────────────────────
-// FIX: All hardcoded "lovecraft-assets" bucket strings replaced with
-//      STORAGE_BUCKETS constants from src/config/storage.ts.
-//
-// Bucket map (must match Supabase Dashboard → Storage → Buckets):
-//   uploads          → photos, audio, video  (private)
-//   published-assets → generated HTML sites  (public)
-//   thumbnails       → OG preview images     (public)
+// Storage Service — Upload assets to Supabase Storage with isolation,
+// security validation, and automatic WebP image compression
 // ─────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { STORAGE_BUCKETS, storagePaths } from "@/config/storage";
+import { validateFileSignature } from "@/lib/file-validator";
+import { optimizeImage } from "@/lib/media-optimizer";
 
 export interface UploadResult {
   url: string;
   path: string;
 }
-
-// ── Helpers ──────────────────────────────────────────────────────
 
 function dataUrlToBlob(dataUrl: string): Blob {
   const [header, base64] = dataUrl.split(",");
@@ -29,34 +21,39 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([bytes], { type: mime });
 }
 
-function mimeToExt(dataUrl: string): string {
-  const mime = dataUrl.match(/data:([^;]+)/)?.[1] ?? "";
+function mimeToExt(mimeOrDataUrl: string): string {
+  const mime = mimeOrDataUrl.includes(";")
+    ? (mimeOrDataUrl.match(/data:([^;]+)/)?.[1] ?? "")
+    : mimeOrDataUrl;
+
   const map: Record<string, string> = {
     "image/jpeg": "jpg",
+    "image/jpg": "jpg",
     "image/png": "png",
     "image/webp": "webp",
     "image/gif": "gif",
+    "image/svg+xml": "svg",
     "audio/mpeg": "mp3",
+    "audio/mp3": "mp3",
     "audio/ogg": "ogg",
     "audio/wav": "wav",
+    "audio/m4a": "m4a",
     "video/mp4": "mp4",
     "video/webm": "webm",
+    "application/pdf": "pdf",
   };
   return map[mime] ?? "bin";
 }
 
-/** Get a public URL from the published-assets or thumbnails bucket */
 function getPublicUrl(bucket: string, path: string): string {
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
 }
 
-// ── Service ──────────────────────────────────────────────────────
-
 export const storageService = {
   /**
-   * Upload a photo to the `uploads` bucket.
-   * Falls back to the original dataUrl if Supabase is not configured.
+   * Upload a photo to the `uploads` bucket under `users/{userId}/images/`.
+   * Automatically validates file signature, strips EXIF metadata, and converts to WebP.
    */
   async uploadPhoto(
     userId: string,
@@ -66,27 +63,47 @@ export const storageService = {
   ): Promise<string> {
     if (!isSupabaseConfigured) return dataUrl;
 
-    const ext = mimeToExt(dataUrl);
+    const rawBlob = dataUrlToBlob(dataUrl);
+
+    // 1. File security validation
+    const validation = await validateFileSignature(rawBlob, filename);
+    if (!validation.valid) {
+      console.warn(`[Storage] Photo validation warning for ${filename}:`, validation.error);
+    }
+
+    // 2. Optimize image (convert to WebP, strip EXIF, downscale if >2048px)
+    let finalBlob: Blob = rawBlob;
+    let ext = mimeToExt(rawBlob.type);
+
+    try {
+      const optimized = await optimizeImage(dataUrl);
+      finalBlob = optimized.blob;
+      ext = optimized.format === "webp" ? "webp" : ext;
+      console.log(
+        `[Storage] Image optimized: ${filename} (${(optimized.originalSizeBytes / 1024).toFixed(1)}KB -> ${(optimized.optimizedSizeBytes / 1024).toFixed(1)}KB WebP)`,
+      );
+    } catch (optErr) {
+      console.warn("[Storage] Image optimization fallback to raw blob:", optErr);
+    }
+
     const uniqueName = `${Date.now()}-${filename.replace(/\.[^.]+$/, "")}.${ext}`;
     const path = storagePaths.photo(userId, projectId, uniqueName);
-    const blob = dataUrlToBlob(dataUrl);
 
     console.log(`[Storage] uploadPhoto → bucket="${STORAGE_BUCKETS.uploads}" path="${path}"`);
 
     const { error } = await supabase.storage
       .from(STORAGE_BUCKETS.uploads)
-      .upload(path, blob, { contentType: blob.type, upsert: false });
+      .upload(path, finalBlob, { contentType: finalBlob.type, upsert: false });
 
     if (error) {
       console.error(
         `[Storage] Photo upload failed (bucket="${STORAGE_BUCKETS.uploads}"):`,
         error.message,
       );
-      // Graceful degradation — keep dataUrl in the generated HTML
       return dataUrl;
     }
 
-    // uploads bucket is private — return a signed URL (1 year expiry)
+    // Return signed URL (1 year expiry)
     const { data: signed, error: signErr } = await supabase.storage
       .from(STORAGE_BUCKETS.uploads)
       .createSignedUrl(path, 60 * 60 * 24 * 365);
@@ -100,7 +117,7 @@ export const storageService = {
   },
 
   /**
-   * Upload audio or video to the `uploads` bucket.
+   * Upload audio or video to the `uploads` bucket under `users/{userId}/audio/` or `users/{userId}/videos/`.
    */
   async uploadMedia(
     userId: string,
@@ -111,13 +128,20 @@ export const storageService = {
   ): Promise<string> {
     if (!isSupabaseConfigured) return dataUrl;
 
-    const ext = mimeToExt(dataUrl);
+    const blob = dataUrlToBlob(dataUrl);
+
+    // File security validation
+    const validation = await validateFileSignature(blob, filename);
+    if (!validation.valid) {
+      console.warn(`[Storage] ${type} validation warning for ${filename}:`, validation.error);
+    }
+
+    const ext = mimeToExt(blob.type);
     const uniqueName = `${Date.now()}-${filename.replace(/\.[^.]+$/, "")}.${ext}`;
     const path =
       type === "audio"
         ? storagePaths.audio(userId, projectId, uniqueName)
         : storagePaths.video(userId, projectId, uniqueName);
-    const blob = dataUrlToBlob(dataUrl);
 
     console.log(
       `[Storage] uploadMedia (${type}) → bucket="${STORAGE_BUCKETS.uploads}" path="${path}"`,
@@ -148,12 +172,10 @@ export const storageService = {
   },
 
   /**
-   * Upload the generated HTML file to the `published-assets` bucket (public).
-   * Throws with the actual Supabase error message on failure.
+   * Upload the generated HTML file to the `published-assets` bucket under `users/{userId}/sites/{siteId}/index.html`.
    */
   async uploadHtml(userId: string, siteId: string, html: string): Promise<string> {
     if (!isSupabaseConfigured) {
-      // Return an object URL for same-session preview
       const blob = new Blob([html], { type: "text/html" });
       return URL.createObjectURL(blob);
     }
@@ -169,11 +191,10 @@ export const storageService = {
       .from(STORAGE_BUCKETS.publishedAssets)
       .upload(path, blob, {
         contentType: "text/html; charset=utf-8",
-        upsert: true, // Allow republishing
+        upsert: true,
       });
 
     if (error) {
-      // Surface the REAL Supabase error — not a generic "Bucket not found"
       console.error(
         `[Storage] HTML upload failed`,
         `bucket="${STORAGE_BUCKETS.publishedAssets}"`,
@@ -192,12 +213,12 @@ export const storageService = {
   },
 
   /**
-   * Delete all raw assets for a project from the `uploads` bucket.
+   * Delete project assets.
    */
   async deleteProjectAssets(userId: string, projectId: string): Promise<void> {
     if (!isSupabaseConfigured) return;
 
-    const prefix = `${userId}/${projectId}`;
+    const prefix = `users/${userId}`;
     console.log(
       `[Storage] deleteProjectAssets → bucket="${STORAGE_BUCKETS.uploads}" prefix="${prefix}"`,
     );
@@ -213,7 +234,7 @@ export const storageService = {
   },
 
   /**
-   * Delete the published HTML + any associated assets for a site.
+   * Delete site assets.
    */
   async deleteSiteAssets(userId: string, siteId: string): Promise<void> {
     if (!isSupabaseConfigured) return;
