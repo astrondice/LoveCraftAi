@@ -105,12 +105,18 @@ function AuthCallbackPage() {
         setUser(userProfile);
 
         setStatus("success");
-        const next = search.next ?? "/dashboard";
+        const { getPendingPublish } = await import("@/lib/pending-publish");
+        const pending = getPendingPublish();
+        const next = search.next ?? (pending ? "/generate?autoPublish=true" : "/dashboard");
         console.log("[LoveCraft Auth] Redirecting to:", next);
 
         // Small delay so the user sees the success heart animation
         setTimeout(() => {
-          void navigate({ to: next as "/" });
+          if (next.includes("?")) {
+            window.location.href = next;
+          } else {
+            void navigate({ to: next as "/" });
+          }
         }, 900);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Authentication failed";

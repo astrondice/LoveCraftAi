@@ -27,6 +27,12 @@ const PHASE_LABELS: Record<string, string> = {
   done: "Your love story is live! 💖",
 };
 
+import {
+  savePendingPublish,
+  getPendingPublish,
+  clearPendingPublish,
+} from "@/lib/pending-publish";
+
 export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
   const { user, isAuthenticated } = useAuth();
   const [stage, setStage] = useState<Stage>("idle");
@@ -42,10 +48,21 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     async (userId: string) => {
       setStage("publishing");
       setError(null);
+
+      // Resolve active publish input (fallback to pending storage if modal input is blank)
+      const pendingInput = getPendingPublish();
+      const activeInput: PublishInput =
+        input && input.photos && input.photos.length > 0
+          ? input
+          : pendingInput ?? input;
+
       try {
-        const res = await publishService.publish({ ...input, projectId: undefined }, userId, (p) =>
-          setProgress(p),
+        const res = await publishService.publish(
+          { ...activeInput, projectId: undefined },
+          userId,
+          (p) => setProgress(p),
         );
+        clearPendingPublish();
         setResult(res);
         setStage("success");
       } catch (err) {
@@ -68,12 +85,16 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     }
     // Modal just opened
     if (!isAuthenticated || !user) {
+      // Save pending publish input before triggering auth modal / OAuth
+      if (input && input.photos && input.photos.length > 0) {
+        savePendingPublish(input);
+      }
       setStage("auth");
     } else {
       void startPublish(user.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, isAuthenticated, user]);
 
   const handleAuthSuccess = () => {
     if (user) void startPublish(user.id);
@@ -83,6 +104,9 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     onClose();
   };
 
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const oauthRedirectUrl = `${origin}/auth/callback?next=${encodeURIComponent("/generate?autoPublish=true")}`;
+
   return (
     <>
       {/* Auth gate */}
@@ -91,6 +115,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
         onClose={onClose}
         onSuccess={handleAuthSuccess}
         title="Sign in to publish your love story"
+        redirectTo={oauthRedirectUrl}
       />
 
       {/* Main modal */}

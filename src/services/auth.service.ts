@@ -35,11 +35,12 @@ function getOrigin(): string {
 
 export const authService = {
   /** Sign in with Google or GitHub OAuth */
-  async signInWithOAuth(provider: OAuthProvider): Promise<void> {
+  async signInWithOAuth(provider: OAuthProvider, customRedirectTo?: string): Promise<void> {
+    const targetRedirect = customRedirectTo || `${getOrigin()}/auth/callback`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${getOrigin()}/auth/callback`,
+        redirectTo: targetRedirect,
         queryParams: provider === "google" ? { access_type: "offline", prompt: "consent" } : {},
       },
     });

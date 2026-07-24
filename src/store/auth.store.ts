@@ -20,7 +20,7 @@ interface AuthStore {
   _initialized: boolean; // guard against double-init
   // Actions
   initialize: () => Promise<void>;
-  signInWithOAuth: (provider: OAuthProvider) => Promise<void>;
+  signInWithOAuth: (provider: OAuthProvider, redirectTo?: string) => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   sendMagicLink: (email: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
@@ -76,9 +76,9 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     }
   },
 
-  signInWithOAuth: async (provider) => {
+  signInWithOAuth: async (provider, redirectTo) => {
     console.log("[LoveCraft Auth] OAuth sign-in started:", provider);
-    await authService.signInWithOAuth(provider);
+    await authService.signInWithOAuth(provider, redirectTo);
     // Browser will redirect to /auth/callback — no further action here.
   },
 

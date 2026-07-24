@@ -15,6 +15,8 @@ interface LoginModalProps {
   onSuccess?: () => void;
   /** Context message to show (e.g. "Sign in to publish your love story") */
   title?: string;
+  /** Custom OAuth redirect URL */
+  redirectTo?: string;
 }
 
 type Tab = "signin" | "magic" | "signup";
@@ -24,6 +26,7 @@ export function LoginModal({
   onClose,
   onSuccess,
   title = "Continue your journey",
+  redirectTo,
 }: LoginModalProps) {
   const { signInWithOAuth, signInWithPassword, sendMagicLink, signUp } = useAuth();
   const [tab, setTab] = useState<Tab>("signin");
@@ -45,7 +48,8 @@ export function LoginModal({
     }
   };
 
-  const handleOAuth = (provider: "google" | "github") => handle(() => signInWithOAuth(provider));
+  const handleOAuth = (provider: "google" | "github") =>
+    handle(() => signInWithOAuth(provider, redirectTo));
 
   const handleMagicLink = async (e: FormEvent) => {
     e.preventDefault();

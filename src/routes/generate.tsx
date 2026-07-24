@@ -12,6 +12,8 @@ import { buildReadme } from "@/lib/buildSite";
 import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
 import { PublishModal } from "@/features/publish/PublishModal";
+import { useAuth } from "@/hooks/use-auth";
+import { getPendingPublish } from "@/lib/pending-publish";
 import {
   Upload,
   Music,
@@ -46,6 +48,36 @@ const STEPS = ["The Story", "Memories", "Universe", "The Moment"];
 function GeneratePage() {
   const s = useLovecraft();
   const [showResume, setShowResume] = useState(false);
+
+  const { user, isAuthenticated } = useAuth();
+
+  // Auto-resume publish after OAuth redirect
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const autoPublish = params.get("autoPublish") === "true";
+    const pending = getPendingPublish();
+
+    if ((autoPublish || pending) && isAuthenticated && user) {
+      console.log("[LoveCraft GeneratePage] Auto-restoring pending publish state");
+      if (pending) {
+        if (pending.name1) s.setField("name1", pending.name1);
+        if (pending.name2) s.setField("name2", pending.name2);
+        if (pending.date) s.setField("date", pending.date);
+        if (pending.duration) s.setField("duration", pending.duration);
+        if (pending.memory) s.setField("memory", pending.memory);
+        if (pending.message) s.setField("message", pending.message);
+        if (pending.themeId) s.setTheme(pending.themeId);
+        if (pending.photos && pending.photos.length > 0 && s.photos.length === 0) {
+          s.addPhotos(pending.photos);
+        }
+        if (pending.music && !s.music) s.setMusic(pending.music);
+        if (pending.video && !s.video) s.setVideo(pending.video);
+      }
+      s.setStep(3); // Jump to Step 4 ("The Moment")
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   useEffect(() => {
     // Lenis smooth scroll
@@ -633,6 +665,26 @@ function GenerateStep() {
   const [confetti, setConfetti] = useState<number[]>([]);
   // New: publish modal state
   const [publishOpen, setPublishOpen] = useState(false);
+  const { user, isAuthenticated } = useAuth();
+
+  // Auto-open publish modal when returning from OAuth with pending publish payload
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const autoPublish = params.get("autoPublish") === "true";
+    const pending = getPendingPublish();
+
+    if ((autoPublish || pending) && isAuthenticated && user) {
+      console.log("[LoveCraft Step4] Auto-opening publish modal for authenticated user");
+      setPublishOpen(true);
+
+      if (autoPublish) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, "", cleanUrl);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   const phrases = [
     "✨ Analyzing your memories...",
