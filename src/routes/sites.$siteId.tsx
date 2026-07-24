@@ -13,10 +13,7 @@ import type { PublishedSite } from "@/types";
 
 export const Route = createFileRoute("/sites/$siteId")({
   head: () => ({
-    meta: [
-      { title: "A Love Story — LoveCraft AI" },
-      { name: "robots", content: "index,follow" },
-    ],
+    meta: [{ title: "A Love Story — LoveCraft AI" }, { name: "robots", content: "index,follow" }],
   }),
   component: SiteViewerPage,
 });
@@ -63,18 +60,16 @@ function SiteViewerPage() {
     };
 
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [siteId]);
 
   // ── Loading screen ──────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center"
-        >
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center">
           <div className="relative w-20 h-20 mx-auto mb-6">
             <span className="absolute inset-0 rounded-full border-2 border-gold/30 animate-ping" />
             <span
@@ -85,9 +80,7 @@ function SiteViewerPage() {
               <Heart className="text-gold" size={18} />
             </span>
           </div>
-          <p className="font-display italic text-xl text-ivory">
-            Opening your love story…
-          </p>
+          <p className="font-display italic text-xl text-ivory">Opening your love story…</p>
         </motion.div>
       </div>
     );
@@ -99,9 +92,7 @@ function SiteViewerPage() {
       <div className="min-h-screen bg-charcoal flex items-center justify-center px-4">
         <div className="text-center max-w-md">
           <p className="font-display text-8xl text-ivory/10 mb-4">404</p>
-          <h1 className="font-display text-3xl text-ivory mb-3">
-            This memory doesn't exist
-          </h1>
+          <h1 className="font-display text-3xl text-ivory mb-3">This memory doesn't exist</h1>
           <p className="text-ivory/50 mb-8">
             The love story you're looking for may have been removed or made private.
           </p>

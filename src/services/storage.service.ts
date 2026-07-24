@@ -78,7 +78,10 @@ export const storageService = {
       .upload(path, blob, { contentType: blob.type, upsert: false });
 
     if (error) {
-      console.error(`[Storage] Photo upload failed (bucket="${STORAGE_BUCKETS.uploads}"):`, error.message);
+      console.error(
+        `[Storage] Photo upload failed (bucket="${STORAGE_BUCKETS.uploads}"):`,
+        error.message,
+      );
       // Graceful degradation — keep dataUrl in the generated HTML
       return dataUrl;
     }
@@ -110,19 +113,25 @@ export const storageService = {
 
     const ext = mimeToExt(dataUrl);
     const uniqueName = `${Date.now()}-${filename.replace(/\.[^.]+$/, "")}.${ext}`;
-    const path = type === "audio"
-      ? storagePaths.audio(userId, projectId, uniqueName)
-      : storagePaths.video(userId, projectId, uniqueName);
+    const path =
+      type === "audio"
+        ? storagePaths.audio(userId, projectId, uniqueName)
+        : storagePaths.video(userId, projectId, uniqueName);
     const blob = dataUrlToBlob(dataUrl);
 
-    console.log(`[Storage] uploadMedia (${type}) → bucket="${STORAGE_BUCKETS.uploads}" path="${path}"`);
+    console.log(
+      `[Storage] uploadMedia (${type}) → bucket="${STORAGE_BUCKETS.uploads}" path="${path}"`,
+    );
 
     const { error } = await supabase.storage
       .from(STORAGE_BUCKETS.uploads)
       .upload(path, blob, { contentType: blob.type, upsert: false });
 
     if (error) {
-      console.error(`[Storage] ${type} upload failed (bucket="${STORAGE_BUCKETS.uploads}"):`, error.message);
+      console.error(
+        `[Storage] ${type} upload failed (bucket="${STORAGE_BUCKETS.uploads}"):`,
+        error.message,
+      );
       return dataUrl;
     }
 
@@ -142,11 +151,7 @@ export const storageService = {
    * Upload the generated HTML file to the `published-assets` bucket (public).
    * Throws with the actual Supabase error message on failure.
    */
-  async uploadHtml(
-    userId: string,
-    siteId: string,
-    html: string,
-  ): Promise<string> {
+  async uploadHtml(userId: string, siteId: string, html: string): Promise<string> {
     if (!isSupabaseConfigured) {
       // Return an object URL for same-session preview
       const blob = new Blob([html], { type: "text/html" });
@@ -156,7 +161,9 @@ export const storageService = {
     const path = storagePaths.html(userId, siteId);
     const blob = new Blob([html], { type: "text/html; charset=utf-8" });
 
-    console.log(`[Storage] uploadHtml → bucket="${STORAGE_BUCKETS.publishedAssets}" path="${path}"`);
+    console.log(
+      `[Storage] uploadHtml → bucket="${STORAGE_BUCKETS.publishedAssets}" path="${path}"`,
+    );
 
     const { error } = await supabase.storage
       .from(STORAGE_BUCKETS.publishedAssets)
@@ -175,7 +182,7 @@ export const storageService = {
       );
       throw new Error(
         `HTML upload failed: ${error.message} ` +
-        `(bucket="${STORAGE_BUCKETS.publishedAssets}", path="${path}")`,
+          `(bucket="${STORAGE_BUCKETS.publishedAssets}", path="${path}")`,
       );
     }
 
@@ -187,14 +194,13 @@ export const storageService = {
   /**
    * Delete all raw assets for a project from the `uploads` bucket.
    */
-  async deleteProjectAssets(
-    userId: string,
-    projectId: string,
-  ): Promise<void> {
+  async deleteProjectAssets(userId: string, projectId: string): Promise<void> {
     if (!isSupabaseConfigured) return;
 
     const prefix = `${userId}/${projectId}`;
-    console.log(`[Storage] deleteProjectAssets → bucket="${STORAGE_BUCKETS.uploads}" prefix="${prefix}"`);
+    console.log(
+      `[Storage] deleteProjectAssets → bucket="${STORAGE_BUCKETS.uploads}" prefix="${prefix}"`,
+    );
 
     const { data } = await supabase.storage
       .from(STORAGE_BUCKETS.uploads)
@@ -209,10 +215,7 @@ export const storageService = {
   /**
    * Delete the published HTML + any associated assets for a site.
    */
-  async deleteSiteAssets(
-    userId: string,
-    siteId: string,
-  ): Promise<void> {
+  async deleteSiteAssets(userId: string, siteId: string): Promise<void> {
     if (!isSupabaseConfigured) return;
 
     const htmlPath = storagePaths.html(userId, siteId);

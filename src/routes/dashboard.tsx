@@ -11,15 +11,7 @@ import { SiteCard } from "@/features/dashboard/SiteCard";
 import { useAuth } from "@/hooks/use-auth";
 import { publishService } from "@/services/publish.service";
 import type { PublishedSite } from "@/types";
-import {
-  LayoutDashboard,
-  Globe,
-  Plus,
-  Sparkles,
-  Heart,
-  Loader2,
-  LogOut,
-} from "lucide-react";
+import { LayoutDashboard, Globe, Plus, Sparkles, Heart, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/Logo";
 import { MagneticButton } from "@/components/ui/MagneticButton";
@@ -28,17 +20,19 @@ export const Route = createFileRoute("/dashboard")({
   beforeLoad: () => {
     if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
-    console.log("[LoveCraft Auth] dashboard beforeLoad — isLoading:", isLoading, "isAuthenticated:", isAuthenticated);
+    console.log(
+      "[LoveCraft Auth] dashboard beforeLoad — isLoading:",
+      isLoading,
+      "isAuthenticated:",
+      isAuthenticated,
+    );
     if (!isLoading && !isAuthenticated) {
       console.log("[LoveCraft Auth] Not authenticated — redirecting to /login");
       throw redirect({ to: "/login", search: { redirect: "/dashboard" } });
     }
   },
   head: () => ({
-    meta: [
-      { title: "My Sites — LoveCraft AI" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "My Sites — LoveCraft AI" }, { name: "robots", content: "noindex" }],
   }),
   component: DashboardPage,
 });
@@ -72,7 +66,7 @@ function DashboardPage() {
     if (!authLoading && isAuthenticated) {
       void loadSites();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, authLoading]);
 
   const handleDelete = async (id: string) => {
@@ -131,7 +125,6 @@ function DashboardPage() {
                 </button>
               </div>
             )}
-  
           </div>
         </div>
       </div>
@@ -146,12 +139,11 @@ function DashboardPage() {
         >
           <span className="label-caps text-gold">Your Collection</span>
           <h1 className="font-display text-4xl md:text-6xl text-ivory mt-3">
-            Published{" "}
-            <span className="italic gold-shimmer">Love Stories</span>
+            Published <span className="italic gold-shimmer">Love Stories</span>
           </h1>
           <p className="mt-4 text-ivory/60 max-w-xl">
-            Every love story you've published lives here. Share, manage, and track
-            how many hearts you've touched.
+            Every love story you've published lives here. Share, manage, and track how many hearts
+            you've touched.
           </p>
         </motion.div>
 
@@ -177,8 +169,6 @@ function DashboardPage() {
           </div>
         )}
 
-
-
         {/* Empty state */}
         <AnimatePresence>
           {!authLoading && !loadingSites && isAuthenticated && sites.length === 0 && (
@@ -189,12 +179,10 @@ function DashboardPage() {
               className="text-center py-32"
             >
               <Sparkles className="text-gold mx-auto mb-4" size={44} />
-              <h2 className="font-display text-3xl text-ivory mb-3">
-                No sites published yet
-              </h2>
+              <h2 className="font-display text-3xl text-ivory mb-3">No sites published yet</h2>
               <p className="text-ivory/50 mb-8 max-w-md mx-auto">
-                Create your first cinematic love website and publish it with one click.
-                It'll appear here instantly.
+                Create your first cinematic love website and publish it with one click. It'll appear
+                here instantly.
               </p>
               <Link to="/generate">
                 <MagneticButton variant="gold">

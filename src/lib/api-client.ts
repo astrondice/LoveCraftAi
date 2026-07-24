@@ -18,7 +18,9 @@ export class ApiError extends Error {
 }
 
 async function getAuthHeaders(): Promise<Record<string, string>> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   if (!session?.access_token) return {};
   return { Authorization: `Bearer ${session.access_token}` };
 }
@@ -44,7 +46,9 @@ async function request<T>(
     try {
       const err = (await res.json()) as { message?: string };
       msg = err.message || msg;
-    } catch {}
+    } catch {
+      // ignore JSON parse error
+    }
     throw new ApiError(res.status, msg);
   }
 
@@ -55,8 +59,8 @@ async function request<T>(
 }
 
 export const apiClient = {
-  get:    <T>(path: string) => request<T>("GET", path),
-  post:   <T>(path: string, body?: unknown) => request<T>("POST", path, body),
-  patch:  <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
+  get: <T>(path: string) => request<T>("GET", path),
+  post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
+  patch: <T>(path: string, body: unknown) => request<T>("PATCH", path, body),
   delete: <T>(path: string) => request<T>("DELETE", path),
 };

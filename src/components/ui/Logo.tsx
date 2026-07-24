@@ -1,7 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-interface LogoProps extends React.ImgHTMLAttributes<HTMLImageElement> {}
+type LogoProps = React.ImgHTMLAttributes<HTMLImageElement>;
 
 export function Logo({ className, ...props }: LogoProps) {
   return (

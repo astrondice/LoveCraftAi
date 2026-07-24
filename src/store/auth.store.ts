@@ -17,7 +17,7 @@ interface AuthStore {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  _initialized: boolean;                 // guard against double-init
+  _initialized: boolean; // guard against double-init
   // Actions
   initialize: () => Promise<void>;
   signInWithOAuth: (provider: OAuthProvider) => Promise<void>;
@@ -34,8 +34,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   isAuthenticated: false,
   _initialized: false,
 
-  setUser: (user) =>
-    set({ user, isAuthenticated: !!user, isLoading: false }),
+  setUser: (user) => set({ user, isAuthenticated: !!user, isLoading: false }),
 
   /**
    * Initialize auth — safe to call multiple times.
@@ -64,10 +63,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
       // Single, permanent subscription
       authService.onAuthStateChange((updatedUser) => {
-        console.log(
-          "[LoveCraft Auth] onAuthStateChange →",
-          updatedUser?.email ?? "signed out",
-        );
+        console.log("[LoveCraft Auth] onAuthStateChange →", updatedUser?.email ?? "signed out");
         set({
           user: updatedUser,
           isAuthenticated: !!updatedUser,
@@ -107,14 +103,17 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         }
         if (Date.now() - start > 3000) {
           // Fallback: fetch user directly to unblock navigation
-          authService.getCurrentUser().then((user) => {
-            console.log("[LoveCraft Auth] Password sign-in fallback fetch:", user?.email);
-            set({ user, isAuthenticated: !!user, isLoading: false });
-            resolve();
-          }).catch(() => {
-            set({ isLoading: false });
-            resolve();
-          });
+          authService
+            .getCurrentUser()
+            .then((user) => {
+              console.log("[LoveCraft Auth] Password sign-in fallback fetch:", user?.email);
+              set({ user, isAuthenticated: !!user, isLoading: false });
+              resolve();
+            })
+            .catch(() => {
+              set({ isLoading: false });
+              resolve();
+            });
           return;
         }
         setTimeout(check, 80);

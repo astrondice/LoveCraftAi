@@ -646,7 +646,7 @@ function GenerateStep() {
   const generate = async () => {
     s.setGenerating(true);
     setProgress(0);
-    
+
     // Start generating the blueprint in the background
     const engine = new GenerationEngine();
     const blueprintPromise = engine.generateBlueprint({
@@ -667,7 +667,7 @@ function GenerateStep() {
       setProgress(Math.round(((i + 1) / phrases.length) * 100));
       await new Promise((r) => setTimeout(r, 800));
     }
-    
+
     const blueprint = await blueprintPromise;
     const html = renderBlueprint(blueprint);
     const zip = new JSZip();

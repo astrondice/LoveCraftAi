@@ -14,17 +14,17 @@ export const projectsRouter = new Hono<{ Bindings: Bindings }>();
 projectsRouter.use("*", authMiddleware);
 
 const createSchema = z.object({
-  title:    z.string().min(1).max(200).default("Untitled Love Story"),
-  name1:    z.string().max(100).default(""),
-  name2:    z.string().max(100).default(""),
-  date:     z.string().max(50).default(""),
+  title: z.string().min(1).max(200).default("Untitled Love Story"),
+  name1: z.string().max(100).default(""),
+  name2: z.string().max(100).default(""),
+  date: z.string().max(50).default(""),
   duration: z.string().max(100).default(""),
-  memory:   z.string().max(2000).default(""),
-  message:  z.string().max(5000).default(""),
+  memory: z.string().max(2000).default(""),
+  message: z.string().max(5000).default(""),
   theme_id: z.string().default("cosmic"),
   photo_urls: z.array(z.string().url()).default([]),
-  music_url:  z.string().url().nullable().default(null),
-  video_url:  z.string().url().nullable().default(null),
+  music_url: z.string().url().nullable().default(null),
+  video_url: z.string().url().nullable().default(null),
 });
 
 const updateSchema = createSchema.partial();
@@ -36,10 +36,12 @@ projectsRouter.get("/", async (c) => {
 
   const { data, error } = await supabase
     .from("projects")
-    .select(`
+    .select(
+      `
       *,
       websites (id, slug, title, website_type, preview_image, published_html, status)
-    `)
+    `,
+    )
     .eq("user_id", userId)
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });
@@ -132,7 +134,6 @@ projectsRouter.post("/:id/duplicate", async (c) => {
 
   if (!original) return c.json({ error: "Not found" }, 404);
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, created_at, updated_at, deleted_at, ...fields } = original;
   const { data, error } = await supabase
     .from("projects")

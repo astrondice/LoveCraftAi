@@ -71,7 +71,10 @@ function Landing() {
             Universe
           </a>
           <span className="label-caps text-gold">Moment</span>
-          <Link to="/dashboard" className="label-caps hover:text-ivory transition-colors flex items-center gap-1.5">
+          <Link
+            to="/dashboard"
+            className="label-caps hover:text-ivory transition-colors flex items-center gap-1.5"
+          >
             <Globe size={12} className="text-gold" /> My Sites
           </Link>
         </div>
@@ -122,7 +125,8 @@ function Landing() {
               transition={{ duration: 0.8, delay: 0.7 }}
               className="mt-8 max-w-lg text-ivory/80 text-lg md:text-xl leading-relaxed font-light"
             >
-              LoveCraft AI instantly transforms your memories into stunning, beautiful websites. The perfect way to celebrate a wedding, anniversary, or unforgettable journey.
+              LoveCraft AI instantly transforms your memories into stunning, beautiful websites. The
+              perfect way to celebrate a wedding, anniversary, or unforgettable journey.
             </motion.p>
 
             <motion.div
@@ -132,7 +136,9 @@ function Landing() {
               className="mt-10 flex flex-col sm:flex-row items-center gap-6"
             >
               <Link to="/generate">
-                <MagneticButton variant="primary" className="px-8 py-4 text-lg">Create Website Free</MagneticButton>
+                <MagneticButton variant="primary" className="px-8 py-4 text-lg">
+                  Create Website Free
+                </MagneticButton>
               </Link>
               <a
                 href="#how"
@@ -189,17 +195,21 @@ function Landing() {
             <div className="absolute inset-0 pt-12 overflow-hidden bg-[#1a1a1a]">
               {/* Hero Image */}
               <div className="relative h-[50%] w-full">
-                <img 
-                  src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop" 
-                  alt="Wedding memory" 
+                <img
+                  src="https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop"
+                  alt="Wedding memory"
                   className="w-full h-full object-cover opacity-80"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-transparent to-transparent" />
-                
+
                 {/* Title overlay */}
                 <div className="absolute bottom-6 inset-x-0 text-center">
-                  <h2 className="font-display text-4xl text-ivory tracking-wider mb-2">Aarav & Meera</h2>
-                  <p className="text-gold text-xs tracking-[0.2em] uppercase">Two Souls, One Journey</p>
+                  <h2 className="font-display text-4xl text-ivory tracking-wider mb-2">
+                    Aarav & Meera
+                  </h2>
+                  <p className="text-gold text-xs tracking-[0.2em] uppercase">
+                    Two Souls, One Journey
+                  </p>
                 </div>
               </div>
 
@@ -215,27 +225,43 @@ function Landing() {
                 {/* Fake Gallery */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="aspect-square rounded-lg overflow-hidden border border-ivory/10">
-                    <img src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=400&auto=format&fit=crop" className="w-full h-full object-cover" />
+                    <img
+                      src="https://images.unsplash.com/photo-1520854221256-17451cc331bf?q=80&w=400&auto=format&fit=crop"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div className="aspect-square rounded-lg overflow-hidden border border-ivory/10">
-                    <img src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400&auto=format&fit=crop" className="w-full h-full object-cover" />
+                    <img
+                      src="https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400&auto=format&fit=crop"
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                 </div>
               </div>
-              
+
               {/* Mini Music Player UI */}
               <div className="absolute bottom-6 left-6 right-6 p-4 rounded-xl glass-panel border border-ivory/10 flex items-center gap-4 backdrop-blur-md bg-charcoal/60 z-30 shadow-xl">
                 <div className="w-10 h-10 rounded-full bg-gold/20 flex items-center justify-center shrink-0">
                   <div className="w-3 h-3 border-y-[6px] border-y-transparent border-l-[8px] border-l-gold translate-x-0.5" />
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <div className="text-xs font-medium text-ivory truncate">Perfect - Ed Sheeran</div>
-                  <div className="text-[10px] text-ivory/60 truncate mt-0.5">Playing from memory</div>
+                  <div className="text-xs font-medium text-ivory truncate">
+                    Perfect - Ed Sheeran
+                  </div>
+                  <div className="text-[10px] text-ivory/60 truncate mt-0.5">
+                    Playing from memory
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   <div className="w-1 h-3 bg-gold/60 rounded-full animate-pulse" />
-                  <div className="w-1 h-4 bg-gold/80 rounded-full animate-pulse" style={{ animationDelay: "75ms" }} />
-                  <div className="w-1 h-2 bg-gold/40 rounded-full animate-pulse" style={{ animationDelay: "150ms" }} />
+                  <div
+                    className="w-1 h-4 bg-gold/80 rounded-full animate-pulse"
+                    style={{ animationDelay: "75ms" }}
+                  />
+                  <div
+                    className="w-1 h-2 bg-gold/40 rounded-full animate-pulse"
+                    style={{ animationDelay: "150ms" }}
+                  />
                 </div>
               </div>
             </div>
@@ -352,8 +378,10 @@ function Landing() {
                 background: `linear-gradient(135deg, ${t.color}55 0%, rgba(255,255,255,0.06) 50%, ${t.color}22 100%)`,
               }}
             >
-              <div className="rounded-2xl p-8 h-full flex flex-col justify-between"
-                style={{ background: "rgba(20,18,16,0.85)", backdropFilter: "blur(20px)" }}>
+              <div
+                className="rounded-2xl p-8 h-full flex flex-col justify-between"
+                style={{ background: "rgba(20,18,16,0.85)", backdropFilter: "blur(20px)" }}
+              >
                 {/* Large decorative quote mark */}
                 <div
                   className="font-display text-[5rem] leading-none mb-2 select-none"
@@ -364,11 +392,15 @@ function Landing() {
                 <p className="font-display italic text-ivory text-xl leading-relaxed -mt-6 flex-1">
                   {t.quote}
                 </p>
-                <div className="mt-8 pt-6 border-t flex items-center justify-between"
-                  style={{ borderColor: `${t.color}30` }}>
+                <div
+                  className="mt-8 pt-6 border-t flex items-center justify-between"
+                  style={{ borderColor: `${t.color}30` }}
+                >
                   <div>
                     <span className="text-ivory font-semibold text-base block">{t.names}</span>
-                    <span className="label-caps text-ivory/85 text-[9px] mt-0.5 block">Verified Story</span>
+                    <span className="label-caps text-ivory/85 text-[9px] mt-0.5 block">
+                      Verified Story
+                    </span>
                   </div>
                   <span
                     className="label-caps text-[10px] px-3 py-1.5 rounded-full font-bold"

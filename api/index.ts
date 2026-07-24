@@ -46,9 +46,7 @@ app.use(
 );
 
 // ── Health check ─────────────────────────────────────────────────
-app.get("/api/health", (c) =>
-  c.json({ status: "ok", timestamp: new Date().toISOString() }),
-);
+app.get("/api/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
 
 // ── Route groups ─────────────────────────────────────────────────
 app.route("/api/projects", projectsRouter);
@@ -62,10 +60,7 @@ app.notFound((c) => c.json({ error: "Not found" }, 404));
 // ── Error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
   console.error("[API Error]", err);
-  return c.json(
-    { error: err.message || "Internal server error" },
-    500,
-  );
+  return c.json({ error: err.message || "Internal server error" }, 500);
 });
 
 export default app;
