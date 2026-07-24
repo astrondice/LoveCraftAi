@@ -22,6 +22,8 @@ import { z } from "zod";
 const callbackSearchSchema = z.object({
   next: z.string().optional(),
   code: z.string().optional(),
+  token_hash: z.string().optional(), // PKCE magic-link flow
+  type: z.string().optional(),       // e.g. "email", "recovery"
   error: z.string().optional(),
   error_description: z.string().optional(),
 });
@@ -58,20 +60,35 @@ function AuthCallbackPage() {
 
         let session = null;
 
-        // 2a. PKCE flow: exchange the code for a session
+        // 2a. PKCE flow: exchange the authorization code for a session
         if (search.code) {
           console.log("[LoveCraft Auth] Exchanging PKCE code for session");
           const { data, error } = await supabase.auth.exchangeCodeForSession(search.code);
           if (error) throw new Error(error.message);
           session = data.session;
           console.log("[LoveCraft Auth] PKCE exchange successful, user:", session?.user?.email);
+        } else if (search.token_hash) {
+          // 2b. PKCE magic-link / email OTP flow
+          console.log("[LoveCraft Auth] Verifying PKCE token_hash (magic link)");
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: search.token_hash,
+            type: (search.type as "email" | "recovery" | "invite") ?? "email",
+          });
+          if (error) throw new Error(error.message);
+          session = data.session;
+          console.log("[LoveCraft Auth] Magic-link verified, user:", session?.user?.email);
         } else {
-          // 2b. Implicit / magic-link flow: Supabase has already set the session
-          //     via detectSessionInUrl. Just read it.
-          console.log("[LoveCraft Auth] No code param — reading existing session");
+          // Fallback: check if Supabase already set a session (shouldn't happen with PKCE
+          // but covers edge cases like direct navigation to /auth/callback).
+          console.warn("[LoveCraft Auth] No code or token_hash in URL — checking existing session");
           const { data } = await supabase.auth.getSession();
           session = data.session;
-          console.log("[LoveCraft Auth] Existing session:", session?.user?.email ?? "none");
+          if (!session) {
+            throw new Error(
+              "No authentication code received. Please try signing in again.",
+            );
+          }
+          console.log("[LoveCraft Auth] Fallback session found:", session.user?.email);
         }
 
         if (!session?.user) {

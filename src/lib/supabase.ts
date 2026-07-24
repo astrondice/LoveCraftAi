@@ -1,7 +1,22 @@
 // ─────────────────────────────────────────────────────────────────
 // Supabase Client — Singleton for frontend use
-// SSR-safe: persistSession, autoRefreshToken, and detectSessionInUrl
-// are disabled on the server (typeof window === "undefined").
+//
+// Flow: PKCE (Proof Key for Code Exchange)
+//   - signInWithOAuth() sends the user to Google/GitHub.
+//   - Google redirects to /auth/callback?code=<short-lived-code>
+//   - The callback route calls exchangeCodeForSession(code) to get tokens.
+//   - Tokens are stored in localStorage under storageKey.
+//
+// Why NOT Implicit Flow:
+//   Implicit flow returns #access_token=... in the hash at the root URL,
+//   bypassing /auth/callback entirely. The app has no chance to run the
+//   exchange logic, so the session is never persisted and login appears
+//   to fail even though the OAuth succeeded.
+//
+// SSR-safety:
+//   persistSession, autoRefreshToken are disabled on the server.
+//   detectSessionInUrl is false — not needed with PKCE (the code exchange
+//   happens explicitly in the callback route), and causes SSR issues.
 // ─────────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 
@@ -22,9 +37,10 @@ export const supabase = createClient(
   supabaseAnonKey || "placeholder-anon-key",
   {
     auth: {
+      flowType: "pkce",           // CRITICAL: forces ?code= redirect, not #token hash
       persistSession: isBrowser,
       autoRefreshToken: isBrowser,
-      detectSessionInUrl: isBrowser,
+      detectSessionInUrl: false,  // not needed with PKCE; we exchange manually in /auth/callback
       storageKey: "lovecraft-auth",
     },
   },
