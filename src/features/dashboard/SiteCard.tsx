@@ -65,18 +65,11 @@ export function SiteCard({ site, onDelete }: SiteCardProps) {
       className="glass-panel rounded-2xl overflow-hidden group"
     >
       {/* Thumbnail */}
-      <div
-        className="h-36 relative overflow-hidden"
-        style={{ background: theme.gradient }}
-      >
+      <div className="h-36 relative overflow-hidden" style={{ background: theme.gradient }}>
         <div className="absolute inset-0 flex items-end p-4">
           <div>
-            <p className="font-display text-xl text-ivory leading-tight">
-              {site.title}
-            </p>
-            <p className="label-caps text-ivory/50 text-[10px] mt-1">
-              {theme.name}
-            </p>
+            <p className="font-display text-xl text-ivory leading-tight">{site.title}</p>
+            <p className="label-caps text-ivory/50 text-[10px] mt-1">{theme.name}</p>
           </div>
         </div>
         {/* Status badge */}
@@ -139,10 +132,7 @@ export function SiteCard({ site, onDelete }: SiteCardProps) {
             </button>
             {menuOpen && (
               <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setMenuOpen(false)}
-                />
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                 <div className="absolute right-0 bottom-full mb-1 z-20 glass-panel rounded-xl py-1 min-w-[140px] shadow-2xl">
                   <a
                     href={liveUrl}
@@ -153,14 +143,21 @@ export function SiteCard({ site, onDelete }: SiteCardProps) {
                     <ExternalLink size={13} /> View Site
                   </a>
                   <button
-                    onClick={() => { navigator.clipboard.writeText(liveUrl); setMenuOpen(false); toast.success("Copied!"); }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(liveUrl);
+                      setMenuOpen(false);
+                      toast.success("Copied!");
+                    }}
                     className="flex items-center gap-2 px-3 py-2 text-ivory/70 hover:text-ivory hover:bg-ivory/5 text-sm w-full transition-colors text-left"
                   >
                     <Download size={13} /> Copy Link
                   </button>
                   <div className="h-px bg-ivory/10 my-1" />
                   <button
-                    onClick={() => { handleDelete(); setMenuOpen(false); }}
+                    onClick={() => {
+                      handleDelete();
+                      setMenuOpen(false);
+                    }}
                     className="flex items-center gap-2 px-3 py-2 text-destructive hover:bg-destructive/10 text-sm w-full transition-colors text-left"
                   >
                     <Trash2 size={13} /> Delete

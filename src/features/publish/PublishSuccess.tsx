@@ -74,8 +74,7 @@ export function PublishSuccess({ result, onClose, onCreateAnother }: PublishSucc
           <Sparkles className="text-gold mx-auto mb-4" size={44} />
         </motion.div>
         <h2 className="font-display text-3xl md:text-4xl text-ivory">
-          Your Love Story is{" "}
-          <span className="italic gold-shimmer">Live!</span>
+          Your Love Story is <span className="italic gold-shimmer">Live!</span>
         </h2>
         <p className="mt-3 text-ivory/60 text-sm">
           Share this link anywhere — it works on every device, forever.
@@ -86,9 +85,7 @@ export function PublishSuccess({ result, onClose, onCreateAnother }: PublishSucc
       <div className="glass-panel rounded-2xl px-5 py-4 mb-5 text-left">
         <p className="label-caps text-ivory/40 text-[10px] mb-1">Live URL</p>
         <div className="flex items-center gap-3">
-          <span className="flex-1 text-ivory font-mono text-sm truncate">
-            {result.url}
-          </span>
+          <span className="flex-1 text-ivory font-mono text-sm truncate">{result.url}</span>
           <button
             onClick={copyLink}
             className="shrink-0 w-9 h-9 rounded-xl bg-ivory/10 hover:bg-ivory/20 grid place-items-center transition-colors"
@@ -141,9 +138,7 @@ export function PublishSuccess({ result, onClose, onCreateAnother }: PublishSucc
       <div className="flex flex-col items-center mb-6">
         <p className="label-caps text-ivory/40 text-[10px] mb-3">QR Code</p>
         <QRCodeDisplay url={result.url} size={140} />
-        <p className="text-ivory/30 text-xs mt-2">
-          Scan to open on any phone
-        </p>
+        <p className="text-ivory/30 text-xs mt-2">Scan to open on any phone</p>
       </div>
 
       {/* Bottom actions */}

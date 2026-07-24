@@ -51,12 +51,7 @@ export const projectsService = {
     return apiClient.get<ProjectVersion[]>(`/projects/${id}/versions`);
   },
 
-  async restoreVersion(
-    projectId: string,
-    versionId: string,
-  ): Promise<Project> {
-    return apiClient.post<Project>(
-      `/projects/${projectId}/versions/${versionId}/restore`,
-    );
+  async restoreVersion(projectId: string, versionId: string): Promise<Project> {
+    return apiClient.post<Project>(`/projects/${projectId}/versions/${versionId}/restore`);
   },
 };

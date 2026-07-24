@@ -17,7 +17,9 @@ publishRouter.get("/sites/:id", async (c) => {
 
   const { data, error } = await supabase
     .from("websites")
-    .select("id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html, created_at, updated_at")
+    .select(
+      "id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html, created_at, updated_at",
+    )
     .eq("id", id)
     .eq("status", "active")
     .maybeSingle();

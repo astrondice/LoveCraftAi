@@ -7,12 +7,9 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { storageService } from "./storage.service";
 import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
-import type {
-  PublishInput,
-  PublishResult,
-  PublishProgress,
-  Website,
-} from "@/types";
+import type { PublishInput, PublishResult, PublishProgress, Website } from "@/types";
+
+const isBrowser = typeof window !== "undefined";
 
 // ── ID generators ─────────────────────────────────────────────────
 
@@ -29,9 +26,7 @@ function generateUUID(): string {
 
 function shortId(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from({ length: 6 }, () =>
-    chars[Math.floor(Math.random() * chars.length)],
-  ).join("");
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 function generateSlug(name1: string, name2: string): string {
@@ -66,12 +61,7 @@ export const publishService = {
     const photoUrls: string[] = [];
     for (let i = 0; i < input.photos.length; i++) {
       const photo = input.photos[i];
-      const url = await storageService.uploadPhoto(
-        userId,
-        projectId,
-        photo.dataUrl,
-        photo.name,
-      );
+      const url = await storageService.uploadPhoto(userId, projectId, photo.dataUrl, photo.name);
       photoUrls.push(url);
       onProgress({
         phase: "uploading-assets",
@@ -122,12 +112,8 @@ export const publishService = {
         name: input.photos[i]?.name ?? `photo-${i}`,
         dataUrl: url,
       })),
-      music: musicUrl
-        ? { name: input.music!.name, dataUrl: musicUrl }
-        : input.music,
-      video: videoUrl
-        ? { name: input.video!.name, dataUrl: videoUrl }
-        : input.video,
+      music: musicUrl ? { name: input.music!.name, dataUrl: musicUrl } : input.music,
+      video: videoUrl ? { name: input.video!.name, dataUrl: videoUrl } : input.video,
     });
 
     const html = renderBlueprint(blueprint);
@@ -224,22 +210,22 @@ export const publishService = {
         updated_at: new Date().toISOString(),
       };
 
-      try {
-        sessionStorage.setItem(`lovecraft-site-${siteId}`, html);
-        const sites = JSON.parse(
-          localStorage.getItem("lovecraft-published-sites") ?? "[]",
-        ) as Website[];
-        sites.unshift(site);
-        localStorage.setItem(
-          "lovecraft-published-sites",
-          JSON.stringify(sites.slice(0, 50)),
-        );
-      } catch {
-        // Storage quota exceeded — not critical
+      if (isBrowser) {
+        try {
+          sessionStorage.setItem(`lovecraft-site-${siteId}`, html);
+          const sites = JSON.parse(
+            localStorage.getItem("lovecraft-published-sites") ?? "[]",
+          ) as Website[];
+          sites.unshift(site);
+          localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites.slice(0, 50)));
+        } catch {
+          // Storage quota exceeded — not critical
+        }
       }
     }
 
-    const appUrl = import.meta.env.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
+    const appUrl =
+      import.meta.env.VITE_APP_URL || (typeof window !== "undefined" ? window.location.origin : "");
     const url = `${appUrl}/sites/${siteId}`;
 
     onProgress({ phase: "done", percent: 100, message: "Your love story is live! 💖" });
@@ -275,9 +261,9 @@ export const publishService = {
       }
     }
 
-    const html = sessionStorage.getItem(`lovecraft-site-${siteId}`);
+    const html = isBrowser ? sessionStorage.getItem(`lovecraft-site-${siteId}`) : null;
     const sites = JSON.parse(
-      localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      isBrowser ? (localStorage.getItem("lovecraft-published-sites") ?? "[]") : "[]",
     ) as Website[];
     const site = sites.find((s) => s.id === siteId);
 
@@ -304,9 +290,9 @@ export const publishService = {
         og_image_url: w.preview_image || w.og_image_url,
       }));
     }
-    return JSON.parse(
-      localStorage.getItem("lovecraft-published-sites") ?? "[]",
-    ) as Website[];
+    return isBrowser
+      ? (JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[])
+      : [];
   },
 
   /** Delete a website record (soft delete) */
@@ -323,14 +309,16 @@ export const publishService = {
       }
       return;
     }
-    const sites = JSON.parse(
-      localStorage.getItem("lovecraft-published-sites") ?? "[]",
-    ) as Website[];
-    localStorage.setItem(
-      "lovecraft-published-sites",
-      JSON.stringify(sites.filter((s) => s.id !== siteId)),
-    );
-    sessionStorage.removeItem(`lovecraft-site-${siteId}`);
+    if (isBrowser) {
+      const sites = JSON.parse(
+        localStorage.getItem("lovecraft-published-sites") ?? "[]",
+      ) as Website[];
+      localStorage.setItem(
+        "lovecraft-published-sites",
+        JSON.stringify(sites.filter((s) => s.id !== siteId)),
+      );
+      sessionStorage.removeItem(`lovecraft-site-${siteId}`);
+    }
   },
 
   /** Increment view counter */

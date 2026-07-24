@@ -29,10 +29,7 @@ const callbackSearchSchema = z.object({
 export const Route = createFileRoute("/auth/callback")({
   validateSearch: callbackSearchSchema,
   head: () => ({
-    meta: [
-      { title: "Signing you in — LoveCraft AI" },
-      { name: "robots", content: "noindex" },
-    ],
+    meta: [{ title: "Signing you in — LoveCraft AI" }, { name: "robots", content: "noindex" }],
   }),
   component: AuthCallbackPage,
 });
@@ -124,13 +121,8 @@ function AuthCallbackPage() {
 
         {status === "loading" && (
           <>
-            <Loader2
-              size={40}
-              className="text-gold animate-spin mx-auto mb-5"
-            />
-            <h1 className="font-display text-2xl text-ivory">
-              Signing you in…
-            </h1>
+            <Loader2 size={40} className="text-gold animate-spin mx-auto mb-5" />
+            <h1 className="font-display text-2xl text-ivory">Signing you in…</h1>
             <p className="mt-3 text-ivory/50 text-sm">
               Just a moment while we verify your identity.
             </p>
@@ -144,25 +136,17 @@ function AuthCallbackPage() {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 400, damping: 20 }}
             >
-              <Heart
-                size={44}
-                className="text-gold mx-auto mb-5 pulse-heart"
-                fill="currentColor"
-              />
+              <Heart size={44} className="text-gold mx-auto mb-5 pulse-heart" fill="currentColor" />
             </motion.div>
             <h1 className="font-display text-2xl text-ivory">Welcome back</h1>
-            <p className="mt-3 text-ivory/50 text-sm">
-              Redirecting to your dashboard…
-            </p>
+            <p className="mt-3 text-ivory/50 text-sm">Redirecting to your dashboard…</p>
           </>
         )}
 
         {status === "error" && (
           <>
             <AlertCircle size={44} className="text-destructive mx-auto mb-5" />
-            <h1 className="font-display text-2xl text-ivory">
-              Authentication failed
-            </h1>
+            <h1 className="font-display text-2xl text-ivory">Authentication failed</h1>
             <p className="mt-3 text-ivory/50 text-sm">{errorMsg}</p>
             <button
               onClick={() => void navigate({ to: "/login" })}

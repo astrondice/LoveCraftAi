@@ -31,7 +31,5 @@ export const supabase = createClient(
 );
 
 export const isSupabaseConfigured = Boolean(
-  supabaseUrl &&
-    supabaseAnonKey &&
-    !supabaseUrl.includes("placeholder"),
+  supabaseUrl && supabaseAnonKey && !supabaseUrl.includes("placeholder"),
 );

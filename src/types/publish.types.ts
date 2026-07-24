@@ -45,12 +45,12 @@ export interface PublishProgress {
 
 export interface PublishResult {
   site: Website;
-  url: string;   // https://lovecraft.ai/sites/{id}
+  url: string; // https://lovecraft.ai/sites/{id}
   slug: string | null;
 }
 
 export interface PublishInput {
-  projectId?: string;       // existing project ID if updating
+  projectId?: string; // existing project ID if updating
   name1: string;
   name2: string;
   date: string;
