@@ -2,7 +2,16 @@
 -- Migration 011: Promotional Campaigns & Raksha Bandhan System
 -- ─────────────────────────────────────────────────────────────────
 
--- 1. Promotional Campaigns Table
+-- 1. Ensure public.users table exists
+CREATE TABLE IF NOT EXISTS public.users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  name TEXT,
+  role TEXT DEFAULT 'user' NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Promotional Campaigns Table
 CREATE TABLE IF NOT EXISTS public.promotional_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -22,14 +31,17 @@ CREATE TABLE IF NOT EXISTS public.promotional_campaigns (
 CREATE INDEX IF NOT EXISTS idx_promo_campaigns_active 
 ON public.promotional_campaigns (is_active, category, priority DESC);
 
--- 2. Extend promotional_videos table to support campaign grouping and images
+-- 3. Extend promotional_videos table to support campaign grouping and images
 ALTER TABLE public.promotional_videos 
 ADD COLUMN IF NOT EXISTS campaign_id UUID REFERENCES public.promotional_campaigns(id) ON DELETE CASCADE,
 ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'video', -- 'video' | 'image'
 ADD COLUMN IF NOT EXISTS subtitle TEXT;
 
--- 3. RLS for Promotional Campaigns
+-- 4. RLS for Promotional Campaigns
 ALTER TABLE public.promotional_campaigns ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view active campaigns" ON public.promotional_campaigns;
+DROP POLICY IF EXISTS "Admins have full access to campaigns" ON public.promotional_campaigns;
 
 CREATE POLICY "Public can view active campaigns"
   ON public.promotional_campaigns
@@ -44,14 +56,15 @@ CREATE POLICY "Admins have full access to campaigns"
   ON public.promotional_campaigns
   FOR ALL
   USING (
-    EXISTS (
+    auth.role() = 'service_role' OR
+    (auth.uid() IS NOT NULL AND EXISTS (
       SELECT 1 FROM public.users
       WHERE public.users.id = auth.uid()
       AND public.users.role IN ('admin', 'superadmin')
-    )
+    ))
   );
 
--- 4. Seed Flagship Raksha Bandhan 2026 Campaign Data
+-- 5. Seed Flagship Raksha Bandhan 2026 Campaign Data
 INSERT INTO public.promotional_campaigns (id, name, slug, category, description, is_active, priority)
 VALUES (
   'a1b2c3d4-e5f6-7890-abcd-111111111111',
