@@ -404,32 +404,37 @@ export const promoVideoService = {
   async createVideo(input: CreatePromoVideoInput): Promise<PromotionalVideo> {
     if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
+    const payload: Record<string, unknown> = {
+      title: input.title,
+      subtitle: input.subtitle || null,
+      description: input.description || null,
+      media_type: input.media_type || (input.video_url.match(/\.(jpg|jpeg|png|webp)/i) ? "image" : "video"),
+      video_url: input.video_url,
+      poster_url: input.poster_url || null,
+      cta_text: input.cta_text || "Explore Templates",
+      cta_url: input.cta_url || "/templates",
+      category: input.category || "global",
+      aspect_ratio: input.aspect_ratio || "16:9",
+      is_active: input.is_active ?? true,
+      priority: input.priority ?? 0,
+      display_order: input.display_order ?? 0,
+      autoplay: input.autoplay ?? true,
+      muted: input.muted ?? true,
+      loop: input.loop ?? true,
+      start_at: input.start_at || null,
+      end_at: input.end_at || null,
+      duration: input.duration || 0,
+      file_size: input.file_size || 0,
+      mime_type: input.mime_type || "video/mp4",
+    };
+
+    if (input.campaign_id) {
+      payload.campaign_id = input.campaign_id;
+    }
+
     const { data, error } = await supabase
       .from("promotional_videos")
-      .insert({
-        campaign_id: input.campaign_id || null,
-        title: input.title,
-        subtitle: input.subtitle || null,
-        description: input.description || null,
-        media_type: input.media_type || (input.video_url.match(/\.(jpg|jpeg|png|webp)/i) ? "image" : "video"),
-        video_url: input.video_url,
-        poster_url: input.poster_url || null,
-        cta_text: input.cta_text || "Explore Templates",
-        cta_url: input.cta_url || "/templates",
-        category: input.category || "global",
-        aspect_ratio: input.aspect_ratio || "16:9",
-        is_active: input.is_active ?? true,
-        priority: input.priority ?? 0,
-        display_order: input.display_order ?? 0,
-        autoplay: input.autoplay ?? true,
-        muted: input.muted ?? true,
-        loop: input.loop ?? true,
-        start_at: input.start_at || null,
-        end_at: input.end_at || null,
-        duration: input.duration || 0,
-        file_size: input.file_size || 0,
-        mime_type: input.mime_type || "video/mp4",
-      })
+      .insert(payload)
       .select()
       .single();
 
