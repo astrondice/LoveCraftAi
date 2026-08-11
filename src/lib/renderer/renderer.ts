@@ -2,9 +2,12 @@ import { WebsiteBlueprint } from "../../types/blueprint";
 import { BASE_CSS, BASE_JS } from "./core/base";
 import { renderHero, renderStory, renderGallery, renderTimeline, renderVideo } from "./modules";
 
+import { getThemeById } from "../../themes";
+
 function injectStyles(blueprint: WebsiteBlueprint): string {
   const p = blueprint.colorPalette;
   const t = blueprint.typography;
+  const theme = getThemeById(blueprint.theme);
 
   return `
     <style>
@@ -17,12 +20,22 @@ function injectStyles(blueprint: WebsiteBlueprint): string {
         --font-heading: ${t.heading};
         --font-body: ${t.body};
         --font-accent: ${t.accent || t.heading};
+
+        /* Theme Tokens Injection */
+        --theme-bg: ${theme.colors.background};
+        --theme-surface: ${theme.colors.surface};
+        --theme-surface-container: ${theme.colors.surfaceContainer};
+        --theme-text-primary: ${theme.colors.textPrimary};
+        --theme-text-muted: ${theme.colors.textMuted};
+        --theme-gold: ${theme.colors.goldAccent};
+        --theme-border: ${theme.colors.border};
+        --theme-glass-bg: ${theme.colors.glassBg};
       }
       ${BASE_CSS}
-      /* Additional dynamic animation styles based on blueprint.animations */
     </style>
   `;
 }
+
 
 function injectFonts(blueprint: WebsiteBlueprint): string {
   // Extract font names to build Google Fonts URL
@@ -52,16 +65,19 @@ function injectFonts(blueprint: WebsiteBlueprint): string {
 
 export function renderBlueprint(blueprint: WebsiteBlueprint): string {
   const seo = blueprint.seo;
+  const isRakhi = blueprint.theme?.startsWith("rakhi-") || blueprint.websiteType === "raksha-bandhan";
+
   const audioTag = blueprint.music
     ? `<audio id="bg-audio" src="${blueprint.music.url}" loop preload="auto"></audio>`
     : "";
 
   const sections = [];
-  sections.push(renderHero(blueprint.hero));
-  if (blueprint.story) sections.push(renderStory(blueprint.story));
-  if (blueprint.gallery) sections.push(renderGallery(blueprint.gallery));
-  if (blueprint.timeline) sections.push(renderTimeline(blueprint.timeline));
+  sections.push(renderHero(blueprint.hero, isRakhi));
+  if (blueprint.story) sections.push(renderStory(blueprint.story, isRakhi));
+  if (blueprint.gallery) sections.push(renderGallery(blueprint.gallery, isRakhi));
+  if (blueprint.timeline) sections.push(renderTimeline(blueprint.timeline, isRakhi));
   if (blueprint.videoSection) sections.push(renderVideo(blueprint.videoSection));
+
 
   const jsonLdData = {
     "@context": "https://schema.org",

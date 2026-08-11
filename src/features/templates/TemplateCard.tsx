@@ -39,7 +39,12 @@ export function TemplateCard({
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between z-10">
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {template.status && template.status !== "published" && (
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/90 text-charcoal label-caps text-[9px] font-extrabold shadow-md uppercase">
+                [{template.status}]
+              </span>
+            )}
             {template.badge && (
               <span
                 className={`px-2.5 py-0.5 rounded-full label-caps text-[9px] font-bold shadow-md ${
@@ -54,9 +59,10 @@ export function TemplateCard({
               </span>
             )}
             <span className="px-2.5 py-0.5 rounded-full bg-charcoal/70 backdrop-blur border border-ivory/15 text-ivory/80 label-caps text-[9px]">
-              {template.category}
+              {template.categoryName || template.category}
             </span>
           </div>
+
 
           {/* Favorite Heart Button */}
           <button

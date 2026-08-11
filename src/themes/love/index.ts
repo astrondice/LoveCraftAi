@@ -1,0 +1,75 @@
+// ─────────────────────────────────────────────────────────────────
+// Love Category — Theme Configuration Tokens
+// ─────────────────────────────────────────────────────────────────
+import type { ThemeTokens } from "../types";
+
+export const defaultLoveTheme: ThemeTokens = {
+  id: "cosmic",
+  name: "Cosmic Love",
+  category: "love",
+  vibe: "Deep Obsidian & Starlight",
+  atmosphere: "A surreal blend of starlight and intimate warmth.",
+  colors: {
+    background: "#03020f",
+    surface: "#0e0826",
+    surfaceContainer: "#170f38",
+    surfaceContainerHigh: "#22184d",
+    textPrimary: "#fcf9f5",
+    textMuted: "#b3a6c9",
+    accentPrimary: "#c060a0",
+    accentSecondary: "#7030d0",
+    goldAccent: "#c9a96e",
+    border: "rgba(201, 169, 110, 0.2)",
+    borderHover: "rgba(201, 169, 110, 0.5)",
+    glassBg: "rgba(14, 8, 38, 0.6)",
+    glassBorder: "rgba(201, 169, 110, 0.25)",
+    paperBg: "#0e0826",
+    shadowColor: "rgba(3, 2, 15, 0.8)",
+    glowColor: "rgba(192, 96, 160, 0.3)",
+  },
+  typography: {
+    fontHeading: "'Playfair Display', serif",
+    fontBody: "'Inter', sans-serif",
+    fontAccent: "'Playfair Display', serif",
+    displayLg: { fontSize: "clamp(48px, 6vw, 80px)", lineHeight: "1.1", letterSpacing: "-0.02em", fontWeight: "700" },
+    headlineMd: { fontSize: "clamp(28px, 4vw, 40px)", lineHeight: "1.2", letterSpacing: "0em", fontWeight: "600" },
+    bodyLg: { fontSize: "18px", lineHeight: "1.6", fontWeight: "400" },
+    labelCaps: { fontSize: "12px", letterSpacing: "0.15em", fontWeight: "600" },
+  },
+  spacing: {
+    unit: 8,
+    marginDesktop: "80px",
+    marginMobile: "24px",
+    sectionGap: "140px",
+    cardPadding: "32px",
+  },
+  radius: {
+    sm: "4px",
+    md: "12px",
+    lg: "20px",
+    xl: "32px",
+    full: "9999px",
+  },
+  shadows: {
+    subtle: "0 4px 20px rgba(0, 0, 0, 0.25)",
+    card: "0 10px 30px rgba(3, 2, 15, 0.5)",
+    hover: "0 20px 40px rgba(192, 96, 160, 0.25)",
+    glow: "0 0 30px rgba(201, 169, 110, 0.35)",
+  },
+  motion: {
+    motionFast: "cubic-bezier(0.4, 0, 0.2, 1) 150ms",
+    motionNormal: "cubic-bezier(0.4, 0, 0.2, 1) 350ms",
+    motionSlow: "cubic-bezier(0.4, 0, 0.2, 1) 600ms",
+    motionChapter: "cubic-bezier(0.16, 1, 0.3, 1) 1000ms",
+    motionThread: "ease-in-out 1200ms",
+    motionPaper: "cubic-bezier(0.25, 1, 0.5, 1) 800ms",
+  },
+  particles: {
+    type: "starlight",
+    particleColor: "rgba(255, 255, 255, 0.25)",
+    countHigh: 100,
+    countMedium: 45,
+    speed: 0.15,
+    maxRadius: 2,
+  },
+};

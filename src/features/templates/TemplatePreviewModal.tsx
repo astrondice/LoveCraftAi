@@ -77,14 +77,41 @@ export function TemplatePreviewModal({
         openGraph: { siteName: "LoveCraft AI" },
       },
       hero: {
-        title: "Alex & Jordan",
-        subtitle: "A Celestial Love Story",
-        tagline: "Together since October 2021",
+        title: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? "Aarav & Ananya" : "Alex & Jordan",
+        subtitle: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? "Purest Brother–Sister Bond" : "A Celestial Love Story",
+        tagline: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? "Threads of Love • Raksha Bandhan Special" : "Together since October 2021",
       },
+      story: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? {
+        heading: "A Bond Tied with Devotion & Endless Laughter",
+        paragraphs: [
+          "From silly childhood arguments over the TV remote to sharing our deepest dreams under midnight skies, our journey has been an unbreakable thread of pure love.",
+          "No matter where life takes us or how many miles separate our paths, the sacred promise of Raksha Bandhan remains our eternal anchor.",
+        ],
+        pullQuote: "A brother is a lifelong shield; a sister is a heart's permanent home.",
+      } : undefined,
+      gallery: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? {
+        heading: "Memories Frozen in Time",
+        layout: "polaroid",
+        media: [
+          { url: "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=800&q=80", alt: "Sacred Rakhi Thread", caption: "The Thread of Love" },
+          { url: "https://images.unsplash.com/photo-1543269865-cbf427effbad?auto=format&fit=crop&w=800&q=80", alt: "Childhood Throwback", caption: "Growing Up Together" },
+          { url: "https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=800&q=80", alt: "Sibling Smiles", caption: "Forever Confidants" },
+        ],
+      } : undefined,
+      timeline: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? {
+        heading: "Our Life Milestones",
+        events: [
+          { date: "Childhood", title: "Shared Secrets & Ice Cream Fights", description: "The beginning of an unbreakable partner-in-crime alliance." },
+          { date: "Graduation", title: "Cheering Each Other On", description: "Standing proud through life's biggest achievements." },
+          { date: "Present Day", title: "Miles Apart, Hearts Bound Forever", description: "Distance only makes our bond stronger." },
+        ],
+      } : undefined,
       footer: {
-        text: "Crafted with infinite love",
+        text: template.category === "raksha-bandhan" || template.id.startsWith("rakhi-") ? "Bound by protection. Cherished forever." : "Crafted with infinite love",
       },
     });
+
+
 
     setPreviewHtml(html);
     const timer = setTimeout(() => setLoading(false), 300);

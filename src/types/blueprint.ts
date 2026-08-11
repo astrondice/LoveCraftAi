@@ -9,7 +9,8 @@ export type WebsiteType =
   | "memorial"
   | "graduation"
   | "friendship"
-  | "love-story";
+  | "love-story"
+  | "raksha-bandhan";
 
 export type AnimationStyle = "apple" | "framer" | "linear" | "arc" | "cinematic";
 
@@ -31,6 +32,7 @@ export type MediaAsset = {
   url: string;
   alt?: string;
   type?: "image" | "video";
+  caption?: string;
 };
 
 export interface WebsiteBlueprint {
