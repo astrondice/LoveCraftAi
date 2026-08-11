@@ -64,48 +64,23 @@ DROP POLICY IF EXISTS "Public can view active promotional videos" ON public.prom
 DROP POLICY IF EXISTS "Admins have full access to promotional videos" ON public.promotional_videos;
 DROP POLICY IF EXISTS "Anyone can insert promotional video events" ON public.promotional_video_events;
 DROP POLICY IF EXISTS "Admins can view promotional video events" ON public.promotional_video_events;
+DROP POLICY IF EXISTS "Permissive promotional videos table policy" ON public.promotional_videos;
 
--- Public can view active promotional videos
-CREATE POLICY "Public can view active promotional videos"
-  ON public.promotional_videos
-  FOR SELECT
-  USING (
-    is_active = true 
-    AND (start_at IS NULL OR start_at <= now())
-    AND (end_at IS NULL OR end_at >= now())
-  );
-
--- Authenticated admins / service role can manage all promotional videos
-CREATE POLICY "Admins have full access to promotional videos"
+-- Master permissive policy for promotional_videos table
+CREATE POLICY "Permissive promotional videos table policy"
   ON public.promotional_videos
   FOR ALL
-  USING (
-    auth.role() = 'service_role' OR
-    (auth.uid() IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.users
-      WHERE public.users.id = auth.uid()
-      AND public.users.role IN ('admin', 'superadmin')
-    ))
-  );
+  TO public
+  USING (true)
+  WITH CHECK (true);
 
 -- Anyone can log analytics events
 CREATE POLICY "Anyone can insert promotional video events"
   ON public.promotional_video_events
-  FOR INSERT
+  FOR ALL
+  TO public
+  USING (true)
   WITH CHECK (true);
-
--- Admins can view analytics events
-CREATE POLICY "Admins can view promotional video events"
-  ON public.promotional_video_events
-  FOR SELECT
-  USING (
-    auth.role() = 'service_role' OR
-    (auth.uid() IS NOT NULL AND EXISTS (
-      SELECT 1 FROM public.users
-      WHERE public.users.id = auth.uid()
-      AND public.users.role IN ('admin', 'superadmin')
-    ))
-  );
 
 -- 5. Storage Bucket Setup & Permissive Policies
 INSERT INTO storage.buckets (id, name, public)
