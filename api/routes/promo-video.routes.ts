@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// Promotional Videos API Routes (Hono Worker / Cloudflare API)
+// Promotional Videos & Campaigns API Routes (Hono Worker)
 // ─────────────────────────────────────────────────────────────────
 import { Hono } from "hono";
 import { createClient } from "@supabase/supabase-js";
@@ -38,11 +38,38 @@ promoVideoRouter.get("/promo-videos", async (c) => {
   return c.json(activeData);
 });
 
+// ── Public Endpoint: GET /api/promo-campaigns ──────────────────────
+// Fetch active promotional campaigns with assets
+promoVideoRouter.get("/promo-campaigns", async (c) => {
+  const category = c.req.query("category");
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  let query = supabase
+    .from("promotional_campaigns")
+    .select("*, assets:promotional_videos(*)")
+    .eq("is_active", true)
+    .order("priority", { ascending: false });
+
+  if (category && category !== "all") {
+    query = query.eq("category", category);
+  }
+
+  const { data, error } = await query;
+  if (error) return c.json({ error: error.message }, 500);
+  return c.json(data);
+});
+
 // ── Public Endpoint: POST /api/promo-videos/:id/event ─────────────
 // Track video analytics event (impression, play, 25%, 50%, 75%, complete, cta_click)
 promoVideoRouter.post("/promo-videos/:id/event", async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json<{ event_type: string; category?: string }>();
+
+  // Skip analytics logging for fallback client IDs
+  if (id.startsWith("fallback-")) {
+    return c.json({ success: true });
+  }
+
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   await supabase.from("promotional_video_events").insert({
@@ -55,8 +82,9 @@ promoVideoRouter.post("/promo-videos/:id/event", async (c) => {
   return c.json({ success: true });
 });
 
-// ── Admin Endpoints (Require admin auth) ───────────────────────────
+// ── Admin Endpoints (Strict Admin Security Middleware) ────────────
 promoVideoRouter.use("/admin/promo-videos/*", adminMiddleware);
+promoVideoRouter.use("/admin/promo-campaigns/*", adminMiddleware);
 
 // GET /api/admin/promo-videos — List all videos for admin dashboard
 promoVideoRouter.get("/admin/promo-videos", async (c) => {
@@ -71,9 +99,19 @@ promoVideoRouter.get("/admin/promo-videos", async (c) => {
   return c.json(videos);
 });
 
-// POST /api/admin/promo-videos — Create promotional video
+// POST /api/admin/promo-videos — Create promotional video / image asset
 promoVideoRouter.post("/admin/promo-videos", async (c) => {
-  const body = await c.req.json();
+  const body = await c.req.json<{ video_url?: string }>();
+  
+  // Security File Extension Check
+  if (body.video_url) {
+    const urlLower = body.video_url.toLowerCase();
+    const dangerousExts = [".exe", ".sh", ".php", ".js", ".html", ".bat", ".cmd", ".dll", ".ps1"];
+    if (dangerousExts.some((ext) => urlLower.includes(ext))) {
+      return c.json({ error: "Forbidden file format" }, 400);
+    }
+  }
+
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const { data, error } = await supabase

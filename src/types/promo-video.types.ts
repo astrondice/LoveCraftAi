@@ -1,8 +1,9 @@
 // ─────────────────────────────────────────────────────────────────
-// Promotional Video System Types
+// Promotional Video & Campaign System Types
 // ─────────────────────────────────────────────────────────────────
 
 export type VideoAspectRatio = "16:9" | "9:16" | "1:1" | "4:5";
+export type MediaType = "video" | "image";
 
 export type PromoEventType =
   | "impression"
@@ -13,15 +14,34 @@ export type PromoEventType =
   | "complete"
   | "cta_click";
 
+export interface PromotionalCampaign {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  description: string | null;
+  is_active: boolean;
+  priority: number;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by?: string | null;
+  assets?: PromotionalVideo[];
+}
+
 export interface PromotionalVideo {
   id: string;
+  campaign_id?: string | null;
   title: string;
+  subtitle?: string | null;
   description: string | null;
+  media_type: MediaType;
   video_url: string;
   poster_url: string | null;
   cta_text: string;
   cta_url: string;
-  category: string; // 'global' | 'love' | 'raksha-bandhan' | 'birthday' | 'wedding' | 'business' etc.
+  category: string; // 'global' | 'love' | 'raksha-bandhan' | 'birthday' | 'wedding' etc.
   aspect_ratio: VideoAspectRatio;
   is_active: boolean;
   priority: number;
@@ -37,13 +57,15 @@ export interface PromotionalVideo {
   created_at: string;
   updated_at: string;
   created_by?: string | null;
-  // Computed stats when fetched by admin
   analytics?: PromoVideoAnalytics;
 }
 
 export interface CreatePromoVideoInput {
+  campaign_id?: string;
   title: string;
+  subtitle?: string;
   description?: string;
+  media_type?: MediaType;
   video_url: string;
   poster_url?: string;
   cta_text?: string;
@@ -65,6 +87,17 @@ export interface CreatePromoVideoInput {
 
 export interface UpdatePromoVideoInput extends Partial<CreatePromoVideoInput> {
   id: string;
+}
+
+export interface CreateCampaignInput {
+  name: string;
+  slug?: string;
+  category?: string;
+  description?: string;
+  is_active?: boolean;
+  priority?: number;
+  start_at?: string | null;
+  end_at?: string | null;
 }
 
 export interface PromoVideoAnalytics {

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────
-// PromotionalVideosManager — Admin Dashboard Management UI
+// PromotionalVideosManager — Master Admin Campaign & Media Manager
 // ─────────────────────────────────────────────────────────────────
 import { useEffect, useState, type FormEvent, type ChangeEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,7 @@ import type {
   PromotionalVideo,
   CreatePromoVideoInput,
   VideoAspectRatio,
+  MediaType,
 } from "@/types/promo-video.types";
 import { CATEGORY_LIST } from "@/lib/categories.data";
 import {
@@ -15,20 +16,15 @@ import {
   Plus,
   Trash2,
   Edit2,
-  Eye,
   CheckCircle2,
   XCircle,
-  BarChart2,
   Play,
   Film,
   Sparkles,
   Loader2,
-  Calendar,
-  Layers,
-  Volume2,
-  RotateCw,
   ExternalLink,
   X,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -46,7 +42,9 @@ export function PromotionalVideosManager() {
 
   // Form fields
   const [title, setTitle] = useState("");
+  const [subtitle, setSubtitle] = useState("");
   const [description, setDescription] = useState("");
+  const [mediaType, setMediaType] = useState<MediaType>("video");
   const [videoUrl, setVideoUrl] = useState("");
   const [posterUrl, setPosterUrl] = useState("");
   const [ctaText, setCtaText] = useState("Explore Templates");
@@ -68,7 +66,7 @@ export function PromotionalVideosManager() {
       const list = await promoVideoService.getAllVideosAdmin();
       setVideos(list);
     } catch (err) {
-      toast.error("Failed to load promotional videos");
+      toast.error("Failed to load promotional campaign assets");
     } finally {
       setLoading(false);
     }
@@ -81,7 +79,9 @@ export function PromotionalVideosManager() {
   const openCreateModal = () => {
     setEditingVideo(null);
     setTitle("");
+    setSubtitle("");
     setDescription("");
+    setMediaType("video");
     setVideoUrl("");
     setPosterUrl("");
     setCtaText("Explore Templates");
@@ -102,7 +102,9 @@ export function PromotionalVideosManager() {
   const openEditModal = (video: PromotionalVideo) => {
     setEditingVideo(video);
     setTitle(video.title);
+    setSubtitle(video.subtitle || "");
     setDescription(video.description || "");
+    setMediaType(video.media_type || "video");
     setVideoUrl(video.video_url);
     setPosterUrl(video.poster_url || "");
     setCtaText(video.cta_text || "Explore Templates");
@@ -120,45 +122,40 @@ export function PromotionalVideosManager() {
     setIsModalOpen(true);
   };
 
-  // Video File Upload Handler
-  const handleVideoFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+  // Video or Image File Upload Handler with Security Checks
+  const handleMediaFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setIsUploading(true);
-    setUploadStage("Validating video file...");
+    setUploadStage("Validating media file security...");
     setUploadProgress(15);
 
     try {
-      setUploadStage("Uploading to cloud storage...");
-      const url = await promoVideoService.uploadMediaFile(file, "videos", (p) => {
+      const isImage = file.type.startsWith("image/");
+      const targetFolder = isImage ? "posters" : "videos";
+
+      setUploadStage("Uploading to Supabase storage...");
+      const url = await promoVideoService.uploadMediaFile(file, targetFolder, (p) => {
         setUploadProgress(p);
         if (p < 50) setUploadStage(`Uploading ${p}%`);
-        else if (p < 85) setUploadStage("Processing video frames...");
-        else setUploadStage("Optimizing playback stream...");
+        else if (p < 85) setUploadStage("Processing media & extracting metadata...");
+        else setUploadStage("Optimizing CDN delivery...");
       });
 
       setVideoUrl(url);
+      if (isImage) {
+        setMediaType("image");
+        setPosterUrl(url);
+      } else {
+        setMediaType("video");
+      }
       setUploadStage("Ready ✓");
-      toast.success("Video uploaded successfully!");
+      toast.success("Media asset uploaded successfully!");
     } catch (err: any) {
-      toast.error(err.message || "Failed to upload video");
+      toast.error(err.message || "Failed to upload media asset");
     } finally {
       setIsUploading(false);
-    }
-  };
-
-  // Poster Image Upload Handler
-  const handlePosterFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const url = await promoVideoService.uploadMediaFile(file, "posters");
-      setPosterUrl(url);
-      toast.success("Poster image uploaded!");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to upload poster image");
     }
   };
 
@@ -168,7 +165,7 @@ export function PromotionalVideosManager() {
         id: video.id,
         is_active: !video.is_active,
       });
-      toast.success(`Video ${!video.is_active ? "enabled" : "disabled"}`);
+      toast.success(`Asset ${!video.is_active ? "enabled" : "disabled"}`);
       void loadVideos();
     } catch {
       toast.error("Failed to update status");
@@ -176,25 +173,27 @@ export function PromotionalVideosManager() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this promotional video?")) return;
+    if (!confirm("Are you sure you want to delete this campaign asset?")) return;
 
     try {
       await promoVideoService.deleteVideo(id);
-      toast.success("Promotional video deleted");
+      toast.success("Campaign asset deleted");
       void loadVideos();
     } catch (err) {
-      toast.error("Failed to delete video");
+      toast.error("Failed to delete asset");
     }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return toast.error("Title is required");
-    if (!videoUrl.trim()) return toast.error("Video URL or upload is required");
+    if (!videoUrl.trim()) return toast.error("Media URL or file upload is required");
 
     const payload: CreatePromoVideoInput = {
       title: title.trim(),
+      subtitle: subtitle.trim() || undefined,
       description: description.trim() || undefined,
+      media_type: mediaType,
       video_url: videoUrl.trim(),
       poster_url: posterUrl.trim() || undefined,
       cta_text: ctaText.trim() || "Explore Templates",
@@ -214,15 +213,15 @@ export function PromotionalVideosManager() {
     try {
       if (editingVideo) {
         await promoVideoService.updateVideo({ id: editingVideo.id, ...payload });
-        toast.success("Promotional video updated!");
+        toast.success("Promotional asset updated!");
       } else {
         await promoVideoService.createVideo(payload);
-        toast.success("Promotional video created!");
+        toast.success("Promotional asset created!");
       }
       setIsModalOpen(false);
       void loadVideos();
     } catch (err: any) {
-      toast.error(err.message || "Failed to save video");
+      toast.error(err.message || "Failed to save asset");
     }
   };
 
@@ -233,38 +232,38 @@ export function PromotionalVideosManager() {
         <div>
           <div className="flex items-center gap-2">
             <Film className="text-gold" size={24} />
-            <h2 className="font-display text-2xl text-ivory">Promotional Videos</h2>
+            <h2 className="font-display text-2xl text-ivory">Promotional Campaigns</h2>
           </div>
           <p className="text-ivory/60 text-xs mt-1">
-            Manage video ads and promotional showcases rendered inside the browser preview frame across LoveCraft.ai.
+            Manage promotional video & image showcases rendered inside the browser preview mockup (e.g. Raksha Bandhan 2026 Collection).
           </p>
         </div>
         <button
           onClick={openCreateModal}
           className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gold hover:bg-gold-light text-charcoal font-bold text-xs label-caps transition-all shadow-lg shadow-gold/20"
         >
-          <Plus size={16} /> Add Promotional Video
+          <Plus size={16} /> Add Campaign Asset
         </button>
       </div>
 
-      {/* Videos List Table */}
+      {/* Campaign Assets Grid */}
       {loading ? (
         <div className="text-center py-16">
           <Loader2 className="animate-spin text-gold mx-auto mb-3" size={32} />
-          <p className="text-ivory/50 text-xs label-caps">Loading promotional videos...</p>
+          <p className="text-ivory/50 text-xs label-caps">Loading campaign assets...</p>
         </div>
       ) : videos.length === 0 ? (
         <div className="glass-panel p-12 text-center rounded-3xl border border-ivory/10">
           <Film className="text-ivory/20 mx-auto mb-4" size={48} />
-          <h3 className="font-display text-xl text-ivory mb-2">No Promotional Videos</h3>
+          <h3 className="font-display text-xl text-ivory mb-2">No Promotional Assets</h3>
           <p className="text-ivory/60 text-sm max-w-md mx-auto mb-6">
-            Upload your first promo video (e.g. Raksha Bandhan, Love Story Showcase). The frontend will automatically display it in place of the static homepage preview frame.
+            Upload your first video or image campaign asset. The homepage will automatically display it in place of the static preview frame.
           </p>
           <button
             onClick={openCreateModal}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gold text-charcoal font-bold text-xs label-caps"
           >
-            <Plus size={16} /> Upload First Video
+            <Plus size={16} /> Upload First Asset
           </button>
         </div>
       ) : (
@@ -278,9 +277,9 @@ export function PromotionalVideosManager() {
             >
               {/* Media Header */}
               <div className="relative aspect-video bg-charcoal overflow-hidden">
-                {video.poster_url ? (
+                {video.media_type === "image" || video.poster_url ? (
                   <img
-                    src={video.poster_url}
+                    src={video.poster_url || video.video_url}
                     alt={video.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -294,7 +293,7 @@ export function PromotionalVideosManager() {
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-transparent to-transparent" />
 
-                {/* Status Badges */}
+                {/* Status & Media Type Badges */}
                 <div className="absolute top-3 left-3 flex items-center gap-2">
                   <span
                     className={`px-2.5 py-0.5 rounded-full label-caps text-[9px] font-bold ${
@@ -305,7 +304,8 @@ export function PromotionalVideosManager() {
                   >
                     {video.is_active ? "Active" : "Disabled"}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-charcoal/80 text-gold border border-gold/30 label-caps text-[9px] capitalize">
+                  <span className="px-2.5 py-0.5 rounded-full bg-charcoal/80 text-gold border border-gold/30 label-caps text-[9px] capitalize flex items-center gap-1">
+                    {video.media_type === "image" ? <ImageIcon size={9} /> : <Film size={9} />}
                     {video.category}
                   </span>
                 </div>
@@ -315,7 +315,7 @@ export function PromotionalVideosManager() {
                   Priority: {video.priority}
                 </div>
 
-                {/* Preview Trigger */}
+                {/* Live Preview Trigger */}
                 <button
                   onClick={() => setPreviewVideo(video)}
                   className="absolute inset-0 grid place-items-center bg-charcoal/40 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -332,6 +332,11 @@ export function PromotionalVideosManager() {
                   <h3 className="font-display text-lg text-ivory group-hover:text-gold transition-colors">
                     {video.title}
                   </h3>
+                  {video.subtitle && (
+                    <p className="text-gold text-[10px] label-caps tracking-wider mt-0.5">
+                      {video.subtitle}
+                    </p>
+                  )}
                   {video.description && (
                     <p className="text-ivory/60 text-xs mt-1 line-clamp-2">{video.description}</p>
                   )}
@@ -392,7 +397,7 @@ export function PromotionalVideosManager() {
                     <button
                       onClick={() => void handleDelete(video.id)}
                       className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-all"
-                      title="Delete Video"
+                      title="Delete Asset"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -416,7 +421,7 @@ export function PromotionalVideosManager() {
             >
               <div className="flex items-center justify-between border-b border-ivory/10 pb-4">
                 <h3 className="font-display text-2xl text-ivory">
-                  {editingVideo ? "Edit Promotional Video" : "Upload Promotional Video"}
+                  {editingVideo ? "Edit Campaign Asset" : "Add Promotional Asset"}
                 </h3>
                 <button
                   onClick={() => setIsModalOpen(false)}
@@ -427,22 +432,22 @@ export function PromotionalVideosManager() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Video Upload Dropzone */}
+                {/* Media File Upload Dropzone */}
                 <div>
                   <label className="block text-xs label-caps text-ivory/70 mb-2">
-                    Video File (MP4, WebM, MOV) *
+                    Media File (MP4, WebM, MOV, JPEG, PNG, WebP) *
                   </label>
                   <div className="border-2 border-dashed border-ivory/20 hover:border-gold/50 rounded-2xl p-6 text-center transition-colors bg-charcoal/50 relative">
                     <input
                       type="file"
-                      accept="video/mp4,video/webm,video/quicktime"
-                      onChange={handleVideoFileUpload}
+                      accept="video/*,image/*"
+                      onChange={handleMediaFileUpload}
                       disabled={isUploading}
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
                     <Upload className="mx-auto mb-2 text-gold" size={28} />
                     <p className="text-xs text-ivory/80">
-                      {videoUrl ? "Video Uploaded ✓ Click to replace" : "Drag & drop or click to upload video file"}
+                      {videoUrl ? "Media File Attached ✓ Click to replace" : "Drag & drop or click to upload video or image"}
                     </p>
 
                     {/* Progress Bar */}
@@ -463,31 +468,13 @@ export function PromotionalVideosManager() {
                       type="text"
                       value={videoUrl}
                       onChange={(e) => setVideoUrl(e.target.value)}
-                      placeholder="Video URL"
+                      placeholder="Media URL"
                       className="mt-2 w-full px-4 py-2 text-xs rounded-xl bg-ivory/5 border border-ivory/10 text-ivory/70"
                     />
                   )}
                 </div>
 
-                {/* Poster Image Upload */}
-                <div>
-                  <label className="block text-xs label-caps text-ivory/70 mb-2">
-                    Poster Image (Optional)
-                  </label>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handlePosterFileUpload}
-                      className="text-xs text-ivory/60 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-gold file:text-charcoal hover:file:bg-gold-light cursor-pointer"
-                    />
-                    {posterUrl && (
-                      <img src={posterUrl} alt="Poster" className="w-12 h-12 object-cover rounded-lg border border-ivory/20" />
-                    )}
-                  </div>
-                </div>
-
-                {/* Title & Category Row */}
+                {/* Title & Subtitle Row */}
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs label-caps text-ivory/70 mb-1">Title *</label>
@@ -496,11 +483,25 @@ export function PromotionalVideosManager() {
                       required
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Raksha Bandhan Collection"
+                      placeholder="e.g. The Purest Bond Ever"
                       className="w-full px-4 py-2.5 rounded-xl bg-ivory/5 border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
                     />
                   </div>
 
+                  <div>
+                    <label className="block text-xs label-caps text-ivory/70 mb-1">Subtitle</label>
+                    <input
+                      type="text"
+                      value={subtitle}
+                      onChange={(e) => setSubtitle(e.target.value)}
+                      placeholder="e.g. A bond that time can't break"
+                      className="w-full px-4 py-2.5 rounded-xl bg-ivory/5 border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Category & Media Type */}
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs label-caps text-ivory/70 mb-1">Category</label>
                     <select
@@ -508,12 +509,25 @@ export function PromotionalVideosManager() {
                       onChange={(e) => setCategory(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-charcoal border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
                     >
+                      <option value="raksha-bandhan">Raksha Bandhan 🎀</option>
                       <option value="global">Global (Homepage)</option>
-                      {CATEGORY_LIST.filter((c) => c.id !== "all").map((cat) => (
+                      {CATEGORY_LIST.filter((c) => c.id !== "all" && c.id !== "raksha-bandhan").map((cat) => (
                         <option key={cat.id} value={cat.slug}>
                           {cat.name} ({cat.emoji})
                         </option>
                       ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs label-caps text-ivory/70 mb-1">Media Type</label>
+                    <select
+                      value={mediaType}
+                      onChange={(e) => setMediaType(e.target.value as MediaType)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-charcoal border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
+                    >
+                      <option value="video">Video (MP4 / WebM)</option>
+                      <option value="image">Cinematic Image (JPEG / PNG / WebP)</option>
                     </select>
                   </div>
                 </div>
@@ -524,7 +538,7 @@ export function PromotionalVideosManager() {
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Short description for the video overlay..."
+                    placeholder="Short campaign description..."
                     rows={2}
                     className="w-full px-4 py-2.5 rounded-xl bg-ivory/5 border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
                   />
@@ -538,7 +552,7 @@ export function PromotionalVideosManager() {
                       type="text"
                       value={ctaText}
                       onChange={(e) => setCtaText(e.target.value)}
-                      placeholder="Explore Templates"
+                      placeholder="Explore Raksha Bandhan Templates"
                       className="w-full px-4 py-2.5 rounded-xl bg-ivory/5 border border-ivory/10 text-ivory text-sm focus:border-gold outline-none"
                     />
                   </div>
@@ -582,7 +596,7 @@ export function PromotionalVideosManager() {
                   </div>
                 </div>
 
-                {/* Video Playback Toggles */}
+                {/* Playback Toggles */}
                 <div className="flex flex-wrap gap-6 pt-2">
                   <label className="flex items-center gap-2 text-xs text-ivory/80 cursor-pointer">
                     <input
@@ -625,7 +639,7 @@ export function PromotionalVideosManager() {
                   </label>
                 </div>
 
-                {/* Buttons */}
+                {/* Form Footer */}
                 <div className="flex justify-end gap-3 pt-4 border-t border-ivory/10">
                   <button
                     type="button"
@@ -638,7 +652,7 @@ export function PromotionalVideosManager() {
                     type="submit"
                     className="px-6 py-2.5 rounded-full bg-gold text-charcoal font-bold text-xs label-caps hover:bg-gold-light transition-all shadow-lg shadow-gold/20"
                   >
-                    {editingVideo ? "Update Video" : "Save Promotional Video"}
+                    {editingVideo ? "Update Asset" : "Save Campaign Asset"}
                   </button>
                 </div>
               </form>
@@ -658,7 +672,12 @@ export function PromotionalVideosManager() {
               className="relative w-full max-w-xl glass-panel rounded-3xl p-6 border border-ivory/10 bg-charcoal space-y-4"
             >
               <div className="flex items-center justify-between border-b border-ivory/10 pb-3">
-                <h4 className="font-display text-lg text-ivory">{previewVideo.title}</h4>
+                <div>
+                  <h4 className="font-display text-lg text-ivory">{previewVideo.title}</h4>
+                  {previewVideo.subtitle && (
+                    <p className="text-gold text-[10px] label-caps">{previewVideo.subtitle}</p>
+                  )}
+                </div>
                 <button
                   onClick={() => setPreviewVideo(null)}
                   className="p-1 rounded-full text-ivory/50 hover:text-ivory"
@@ -668,13 +687,20 @@ export function PromotionalVideosManager() {
               </div>
 
               <div className="relative aspect-video rounded-2xl overflow-hidden bg-black">
-                <video
-                  src={previewVideo.video_url}
-                  poster={previewVideo.poster_url || undefined}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-cover"
-                />
+                {previewVideo.media_type === "image" || previewVideo.poster_url ? (
+                  <img
+                    src={previewVideo.poster_url || previewVideo.video_url}
+                    alt={previewVideo.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <video
+                    src={previewVideo.video_url}
+                    controls
+                    autoPlay
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
 
               <div className="text-xs text-ivory/70 space-y-1">

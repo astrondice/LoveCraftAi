@@ -1,13 +1,12 @@
 // ─────────────────────────────────────────────────────────────────
-// Promotional Showcase — Premium Browser Device Mockup Component
-// Renders active admin promotional videos or falls back to static preview.
+// Promotional Showcase — Master Browser Device Mockup Component
+// Renders active Raksha Bandhan / Love / Global campaigns (video & image).
 // ─────────────────────────────────────────────────────────────────
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link } from "@tanstack/react-router";
 import { promoVideoService } from "@/services/promo-video.service";
 import type { PromotionalVideo, PromoEventType } from "@/types/promo-video.types";
-import { Volume2, VolumeX, Sparkles, ArrowRight, Play, Globe } from "lucide-react";
+import { Volume2, VolumeX, Sparkles, ArrowRight, Heart } from "lucide-react";
 
 interface PromotionalShowcaseProps {
   category?: string;
@@ -33,7 +32,7 @@ export function PromotionalShowcase({
   const videoRef = useRef<HTMLVideoElement>(null);
   const trackedEventsRef = useRef<Set<PromoEventType>>(new Set());
 
-  // 1. Fetch active promo videos on mount / category change
+  // 1. Fetch active promotional assets on mount or category change
   useEffect(() => {
     let isCancelled = false;
 
@@ -49,7 +48,7 @@ export function PromotionalShowcase({
         }
       } catch (err) {
         if (!isCancelled) {
-          console.warn("[PromotionalShowcase] Fetch failed, fallback to static preview", err);
+          console.warn("[PromotionalShowcase] Fetch failed, using static preview fallback", err);
           setHasError(true);
           setLoading(false);
         }
@@ -63,100 +62,88 @@ export function PromotionalShowcase({
     };
   }, [category]);
 
-  const activeVideo: PromotionalVideo | undefined = videos[currentIndex];
+  const activeAsset: PromotionalVideo | undefined = videos[currentIndex];
 
-  // Reset tracked quartile events whenever active video changes
+  // Track impression whenever current asset changes
   useEffect(() => {
     trackedEventsRef.current = new Set();
-    if (activeVideo) {
+    if (activeAsset) {
       void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
+        video_id: activeAsset.id,
         event_type: "impression",
         category,
       });
     }
-  }, [activeVideo?.id, category]);
+  }, [activeAsset?.id, category]);
 
-  // 2. IntersectionObserver: pause video when off-screen, play when in-screen
+  // 2. IntersectionObserver: pause video when scrolled off-screen
   useEffect(() => {
-    if (!containerRef.current || !videoRef.current || !activeVideo) return;
+    if (!containerRef.current || !activeAsset) return;
 
     const el = containerRef.current;
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (entry.isIntersecting) {
-          videoRef.current
-            ?.play()
-            .then(() => setIsPlaying(true))
-            .catch(() => setIsPlaying(false));
+          if (activeAsset.media_type === "video" && videoRef.current) {
+            videoRef.current
+              .play()
+              .then(() => setIsPlaying(true))
+              .catch(() => setIsPlaying(false));
+          } else {
+            setIsPlaying(true);
+          }
         } else {
-          videoRef.current?.pause();
+          if (videoRef.current) {
+            videoRef.current.pause();
+          }
           setIsPlaying(false);
         }
       },
-      { threshold: 0.3 },
+      { threshold: 0.25 },
     );
 
     observer.observe(el);
     return () => observer.disconnect();
-  }, [activeVideo]);
+  }, [activeAsset]);
 
-  // 3. Auto-rotation timer if multiple videos are configured
+  // 3. Campaign Rotation (8 seconds duration for image/video slides)
   useEffect(() => {
     if (videos.length <= 1) return;
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % videos.length);
-    }, 9000); // 9 seconds rotation
+    }, 8000);
 
     return () => clearInterval(interval);
   }, [videos.length]);
 
-  // Handle video progress for 25%, 50%, 75%, complete analytics
+  // Handle video progress for analytics
   const handleTimeUpdate = (e: SyntheticEvent<HTMLVideoElement, Event>) => {
     const vid = e.currentTarget;
-    if (!vid.duration || !activeVideo) return;
+    if (!vid.duration || !activeAsset) return;
 
     const pct = (vid.currentTime / vid.duration) * 100;
     const tracked = trackedEventsRef.current;
 
     if (pct >= 25 && !tracked.has("25%")) {
       tracked.add("25%");
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "25%",
-        category,
-      });
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "25%", category });
     }
     if (pct >= 50 && !tracked.has("50%")) {
       tracked.add("50%");
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "50%",
-        category,
-      });
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "50%", category });
     }
     if (pct >= 75 && !tracked.has("75%")) {
       tracked.add("75%");
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "75%",
-        category,
-      });
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "75%", category });
     }
   };
 
   const handleEnded = () => {
-    if (activeVideo) {
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "complete",
-        category,
-      });
+    if (activeAsset) {
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "complete", category });
     }
-
-    // Auto rotate to next video if multiple videos exist
     if (videos.length > 1) {
       setCurrentIndex((prev) => (prev + 1) % videos.length);
     }
@@ -164,23 +151,15 @@ export function PromotionalShowcase({
 
   const handlePlay = () => {
     setIsPlaying(true);
-    if (activeVideo && !trackedEventsRef.current.has("play")) {
+    if (activeAsset && !trackedEventsRef.current.has("play")) {
       trackedEventsRef.current.add("play");
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "play",
-        category,
-      });
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "play", category });
     }
   };
 
   const handleCtaClick = () => {
-    if (activeVideo) {
-      void promoVideoService.trackEvent({
-        video_id: activeVideo.id,
-        event_type: "cta_click",
-        category,
-      });
+    if (activeAsset) {
+      void promoVideoService.trackEvent({ video_id: activeAsset.id, event_type: "cta_click", category });
     }
   };
 
@@ -191,29 +170,37 @@ export function PromotionalShowcase({
     }
   };
 
-  // Check if we should render promo video or fall back to static preview
-  const showVideo = !loading && !hasError && activeVideo && activeVideo.video_url;
+  const showPromotionalContent = !loading && !hasError && activeAsset && (activeAsset.video_url || activeAsset.poster_url);
+
+  // Determine badge text based on asset category
+  const getBadgeText = (cat?: string) => {
+    if (cat === "raksha-bandhan") return "RAKSHA BANDHAN 2026";
+    if (cat === "love") return "LOVE CRAFT SPOTLIGHT";
+    return "FEATURED EXPERIENCE";
+  };
 
   return (
     <div
       ref={containerRef}
       className={`relative w-full aspect-[9/16] md:aspect-[4/5] max-h-[700px] glass-panel rounded-[2rem] overflow-hidden shadow-2xl mx-auto md:ml-auto md:mr-0 border border-ivory/10 ${className}`}
     >
-      {/* Fake Browser Header */}
+      {/* Browser Chrome Header */}
       <div className="absolute top-0 inset-x-0 h-12 bg-charcoal/85 backdrop-blur-xl border-b border-ivory/10 flex items-center justify-between px-6 z-30">
         <div className="flex items-center gap-2">
           <div className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
           <div className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
         </div>
-        <div className="text-[10px] label-caps text-ivory/50 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-          {showVideo
-            ? `lovecraft.ai/spotlight/${activeVideo?.category}`
-            : "lovecraft.ai/u/aarav-meera"}
+        <div className="text-[10px] label-caps text-ivory/50 flex items-center gap-1.5 truncate max-w-[200px] md:max-w-xs">
+          <span className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse shrink-0" />
+          <span className="truncate">
+            {showPromotionalContent
+              ? `lovecraft.ai/spotlight/${activeAsset?.category}/${activeAsset?.id.slice(0, 8)}`
+              : "lovecraft.ai/u/aarav-meera"}
+          </span>
         </div>
         <div className="w-8 flex justify-end">
-          {showVideo && (
+          {showPromotionalContent && activeAsset?.media_type === "video" && (
             <button
               onClick={toggleMute}
               className="text-ivory/60 hover:text-ivory transition-colors p-1"
@@ -225,26 +212,26 @@ export function PromotionalShowcase({
         </div>
       </div>
 
-      {/* Viewport Content */}
+      {/* Viewport Screen */}
       <div className="absolute inset-0 pt-12 overflow-hidden bg-charcoal">
-        {showVideo ? (
-          /* Dynamic Promotional Video Experience */
+        {showPromotionalContent ? (
+          /* Promotional Campaign Media Viewport */
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeVideo.id}
+              key={activeAsset.id}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.6 }}
+              transition={{ duration: 0.7 }}
               className="relative w-full h-full"
             >
-              {/* Premium Spotlight Badge */}
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-charcoal/70 backdrop-blur-md border border-gold/40 text-gold label-caps text-[9px] font-bold shadow-lg">
+              {/* Campaign Category Badge */}
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-1.5 px-3 py-1 rounded-full bg-charcoal/80 backdrop-blur-md border border-gold/40 text-gold label-caps text-[9px] font-bold shadow-lg">
                 <Sparkles size={11} className="animate-spin-slow" />
-                <span>LoveCraft Spotlight</span>
+                <span>{getBadgeText(activeAsset.category)}</span>
               </div>
 
-              {/* Multiple Video Counter Indicator */}
+              {/* Multi-asset Rotation Dots */}
               {videos.length > 1 && (
                 <div className="absolute top-4 right-4 z-20 flex gap-1">
                   {videos.map((v, i) => (
@@ -259,56 +246,79 @@ export function PromotionalShowcase({
                 </div>
               )}
 
-              {/* Video Element */}
-              <video
-                ref={videoRef}
-                src={activeVideo.video_url}
-                poster={activeVideo.poster_url || undefined}
-                autoPlay={activeVideo.autoplay}
-                muted={isMuted}
-                loop={activeVideo.loop}
-                playsInline
-                preload="metadata"
-                onPlay={handlePlay}
-                onTimeUpdate={handleTimeUpdate}
-                onEnded={handleEnded}
-                onError={() => setHasError(true)}
-                className="w-full h-full object-cover"
-              />
+              {/* Render Video or Image Asset */}
+              {activeAsset.media_type === "video" && activeAsset.video_url.match(/\.(mp4|webm|mov)$/i) ? (
+                <video
+                  ref={videoRef}
+                  src={activeAsset.video_url}
+                  poster={activeAsset.poster_url || undefined}
+                  autoPlay={activeAsset.autoplay}
+                  muted={isMuted}
+                  loop={activeAsset.loop}
+                  playsInline
+                  preload="metadata"
+                  onPlay={handlePlay}
+                  onTimeUpdate={handleTimeUpdate}
+                  onEnded={handleEnded}
+                  onError={() => setHasError(true)}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                /* High-Res Cinematic Image Showcase */
+                <motion.div
+                  initial={{ scale: 1.05 }}
+                  animate={{ scale: 1 }}
+                  transition={{ duration: 8, ease: "linear" }}
+                  className="relative w-full h-full"
+                >
+                  <img
+                    src={activeAsset.video_url || activeAsset.poster_url || ""}
+                    alt={activeAsset.title}
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </motion.div>
+              )}
 
-              {/* Vignette Overlay Gradient */}
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/10 to-transparent pointer-events-none" />
+              {/* Cinematic Vignette Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal via-charcoal/20 to-transparent pointer-events-none" />
 
-              {/* Video Info & CTA Overlay */}
-              <div className="absolute bottom-6 inset-x-6 z-20 flex flex-col items-start gap-3">
-                {activeVideo.title && (
-                  <div>
-                    <h3 className="font-display text-2xl md:text-3xl text-ivory drop-shadow-md">
-                      {activeVideo.title}
+              {/* Overlay Content & Typography */}
+              <div className="absolute bottom-6 inset-x-6 z-20 flex flex-col items-start space-y-3">
+                {activeAsset.title && (
+                  <div className="space-y-1">
+                    <h3 className="font-display text-3xl md:text-4xl text-ivory tracking-tight drop-shadow-lg leading-tight">
+                      {activeAsset.title}
                     </h3>
-                    {activeVideo.description && (
-                      <p className="text-ivory/80 text-xs md:text-sm font-light line-clamp-2 mt-1 drop-shadow">
-                        {activeVideo.description}
+                    {activeAsset.subtitle && (
+                      <p className="text-gold text-xs font-semibold tracking-[0.15em] uppercase drop-shadow">
+                        {activeAsset.subtitle}
+                      </p>
+                    )}
+                    {activeAsset.description && (
+                      <p className="text-ivory/80 text-xs md:text-sm font-light line-clamp-2 pt-1 leading-relaxed drop-shadow">
+                        {activeAsset.description}
                       </p>
                     )}
                   </div>
                 )}
 
-                {activeVideo.cta_url && (
+                {activeAsset.cta_url && (
                   <a
-                    href={activeVideo.cta_url}
+                    href={activeAsset.cta_url}
                     onClick={handleCtaClick}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gold hover:bg-gold-light text-charcoal font-bold text-xs label-caps shadow-xl hover:shadow-gold/20 transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gold hover:bg-gold-light text-charcoal font-bold text-xs label-caps shadow-xl hover:shadow-gold/20 transition-all hover:scale-105 mt-2"
                   >
-                    <span>{activeVideo.cta_text || "Explore Experience"}</span>
-                    <ArrowRight size={13} />
+                    <span>{activeAsset.cta_text || "Explore Experience"}</span>
+                    <ArrowRight size={14} />
                   </a>
                 )}
               </div>
             </motion.div>
           </AnimatePresence>
         ) : (
-          /* Fallback: Static Website Preview Frame (Rule 16 Fallback) */
+          /* Fallback: Static Website Preview Frame (Rule 15 Fallback) */
           <div className="relative w-full h-full overflow-hidden bg-[#1a1a1a]">
             {/* Hero Image */}
             <div className="relative h-[50%] w-full">
