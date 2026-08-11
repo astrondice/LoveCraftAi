@@ -247,14 +247,14 @@ export function PromotionalShowcase({
               )}
 
               {/* Render Video or Image Asset */}
-              {activeAsset.media_type === "video" && activeAsset.video_url.match(/\.(mp4|webm|mov)$/i) ? (
+              {activeAsset.media_type === "video" || activeAsset.video_url.includes("/videos/") || activeAsset.video_url.match(/\.(mp4|webm|mov|m4v)/i) ? (
                 <video
                   ref={videoRef}
                   src={activeAsset.video_url}
                   poster={activeAsset.poster_url || undefined}
-                  autoPlay={activeAsset.autoplay}
+                  autoPlay={activeAsset.autoplay ?? true}
                   muted={isMuted}
-                  loop={activeAsset.loop}
+                  loop={activeAsset.loop ?? true}
                   playsInline
                   preload="metadata"
                   onPlay={handlePlay}
