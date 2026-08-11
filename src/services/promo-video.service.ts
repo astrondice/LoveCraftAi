@@ -404,7 +404,7 @@ export const promoVideoService = {
   async createVideo(input: CreatePromoVideoInput): Promise<PromotionalVideo> {
     if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
-    const payload: Record<string, unknown> = {
+    const fullPayload: Record<string, unknown> = {
       title: input.title,
       subtitle: input.subtitle || null,
       description: input.description || null,
@@ -429,14 +429,45 @@ export const promoVideoService = {
     };
 
     if (input.campaign_id) {
-      payload.campaign_id = input.campaign_id;
+      fullPayload.campaign_id = input.campaign_id;
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("promotional_videos")
-      .insert(payload)
+      .insert(fullPayload)
       .select()
       .single();
+
+    // Fallback: If database schema is missing extended columns, retry with core columns
+    if (error && (error.message.includes("column") || error.message.includes("schema cache"))) {
+      const corePayload = {
+        title: input.title,
+        description: input.description || null,
+        video_url: input.video_url,
+        poster_url: input.poster_url || null,
+        cta_text: input.cta_text || "Explore Templates",
+        cta_url: input.cta_url || "/templates",
+        category: input.category || "global",
+        aspect_ratio: input.aspect_ratio || "16:9",
+        is_active: input.is_active ?? true,
+        priority: input.priority ?? 0,
+        display_order: input.display_order ?? 0,
+        autoplay: input.autoplay ?? true,
+        muted: input.muted ?? true,
+        loop: input.loop ?? true,
+        start_at: input.start_at || null,
+        end_at: input.end_at || null,
+      };
+
+      const retry = await supabase
+        .from("promotional_videos")
+        .insert(corePayload)
+        .select()
+        .single();
+
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error || !data) {
       throw new Error(`Failed to create promotional asset: ${error?.message}`);
@@ -452,7 +483,7 @@ export const promoVideoService = {
     if (!isSupabaseConfigured) throw new Error("Supabase is not configured");
 
     const { id, ...payload } = input;
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("promotional_videos")
       .update({
         ...payload,
@@ -461,6 +492,22 @@ export const promoVideoService = {
       .eq("id", id)
       .select()
       .single();
+
+    if (error && (error.message.includes("column") || error.message.includes("schema cache"))) {
+      const { campaign_id, media_type, subtitle, ...corePayload } = payload as any;
+      const retry = await supabase
+        .from("promotional_videos")
+        .update({
+          ...corePayload,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .select()
+        .single();
+
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error || !data) {
       throw new Error(`Failed to update promotional asset: ${error?.message}`);
