@@ -8,6 +8,7 @@ import { CATEGORY_LIST } from "@/lib/categories.data";
 import { TEMPLATE_LIST } from "@/lib/templates.data";
 import { Logo } from "@/components/ui/Logo";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
+import { PromotionalShowcase } from "@/components/promo/PromotionalShowcase";
 import { ArrowRight, Sparkles } from "lucide-react";
 
 const CANONICAL = "https://lovecraft.ai/templates";
@@ -142,11 +143,15 @@ function TemplatesHubPage() {
               Templates
             </span>
           </h1>
-          <p className="text-ivory/70 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed font-light">
+          <p className="text-ivory/70 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed font-light mb-10">
             Beautiful AI-powered website templates for every occasion — love stories, Raksha
             Bandhan memories, birthdays, weddings, portfolios and businesses. Free to customise
             and publish instantly.
           </p>
+
+          <div className="max-w-3xl mx-auto">
+            <PromotionalShowcase category="global" />
+          </div>
         </motion.div>
 
         {/* Category Grid */}

@@ -10,6 +10,7 @@ import { TEMPLATE_LIST } from "@/lib/templates.data";
 import type { TemplateSpec } from "@/lib/templates.data";
 import { Logo } from "@/components/ui/Logo";
 import { BackgroundFX } from "@/components/animations/BackgroundFX";
+import { PromotionalShowcase } from "@/components/promo/PromotionalShowcase";
 import { getCategorySeo } from "@/lib/seo";
 import { ArrowRight, Sparkles, Clock, Smartphone, Moon } from "lucide-react";
 
@@ -246,10 +247,13 @@ function CategoryPage() {
             {seo.intro}
           </p>
           {templates.length > 0 && (
-            <p className="mt-4 text-ivory/40 text-sm label-caps">
+            <p className="mt-4 text-ivory/40 text-sm label-caps mb-8">
               {templates.length} published template{templates.length !== 1 ? "s" : ""} available
             </p>
           )}
+          <div className="max-w-3xl">
+            <PromotionalShowcase category={slug} />
+          </div>
         </motion.div>
 
         {/* Template grid — only published templates */}

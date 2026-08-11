@@ -12,6 +12,7 @@ import { publishRouter } from "./routes/publish.routes";
 import { analyticsRouter } from "./routes/analytics.routes";
 import { adminRouter } from "./routes/admin.routes";
 import { sitemapRouter } from "./routes/sitemap.routes";
+import { promoVideoRouter } from "./routes/promo-video.routes";
 
 export type Bindings = {
   // Cloudflare R2
@@ -65,6 +66,7 @@ app.route("/api/publish", publishRouter);
 app.route("/api/analytics", analyticsRouter);
 app.route("/api/admin", adminRouter);
 app.route("/api", sitemapRouter);
+app.route("/api", promoVideoRouter);
 
 // ── 404 fallback ─────────────────────────────────────────────────
 app.notFound((c) => c.json({ error: "Not found" }, 404));
