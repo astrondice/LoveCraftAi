@@ -107,31 +107,25 @@ CREATE POLICY "Admins can view promotional video events"
     ))
   );
 
--- 5. Storage Bucket Setup
+-- 5. Storage Bucket Setup & Permissive Policies
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('promotional-videos', 'promotional-videos', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Public access policy for storage objects
+-- Drop all previous policies to avoid conflicts
 DROP POLICY IF EXISTS "Public access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin write access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin update access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin delete access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Allow upload to promotional-videos storage" ON storage.objects;
+DROP POLICY IF EXISTS "Allow update in promotional-videos storage" ON storage.objects;
+DROP POLICY IF EXISTS "Allow delete in promotional-videos storage" ON storage.objects;
+DROP POLICY IF EXISTS "Permissive promotional videos storage policy" ON storage.objects;
 
-CREATE POLICY "Public access for promotional videos storage"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'promotional-videos');
-
-CREATE POLICY "Allow upload to promotional-videos storage"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'promotional-videos');
-
-CREATE POLICY "Allow update in promotional-videos storage"
-  ON storage.objects FOR UPDATE
+-- Master permissive policy for promotional-videos bucket
+CREATE POLICY "Permissive promotional videos storage policy"
+  ON storage.objects
+  FOR ALL
+  TO public
   USING (bucket_id = 'promotional-videos')
   WITH CHECK (bucket_id = 'promotional-videos');
-
-CREATE POLICY "Allow delete in promotional-videos storage"
-  ON storage.objects FOR DELETE
-  USING (bucket_id = 'promotional-videos');
