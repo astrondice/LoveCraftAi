@@ -1,11 +1,35 @@
-# LoveCraft AI Search Engine Directives
+# LoveCraft.ai — Search Engine Directives
+# https://lovecraft.ai/robots.txt
+
+# ── Allow all crawlers to access public pages ──────────────────────
 User-agent: *
-Allow: /
+
+# Public pages — indexable
+Allow: /$
+Allow: /templates
+Allow: /templates/
+Allow: /templates/*
 Allow: /sites/
+
+# ── Block private application routes ──────────────────────────────
 Disallow: /dashboard
+Disallow: /dashboard/
+Disallow: /generate
+Disallow: /generate/
+Disallow: /builder
+Disallow: /builder/
+Disallow: /settings
+Disallow: /settings/
+Disallow: /analytics
+Disallow: /analytics/
+Disallow: /admin
+Disallow: /admin/
+Disallow: /auth/
 Disallow: /api/
 Disallow: /login
+Disallow: /login/
 Disallow: /signup
-Disallow: /auth/
+Disallow: /signup/
 
+# Sitemap
 Sitemap: https://lovecraft.ai/sitemap.xml

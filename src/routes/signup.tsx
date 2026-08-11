@@ -26,7 +26,11 @@ export const Route = createFileRoute("/signup")({
     }
   },
   head: () => ({
-    meta: [{ title: "Create Account — LoveCraft AI" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "Create Account — LoveCraft.ai" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+    links: [{ rel: "canonical", href: "https://lovecraft.ai/signup" }],
   }),
   component: SignupPage,
 });

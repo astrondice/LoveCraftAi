@@ -1,6 +1,8 @@
 // ─────────────────────────────────────────────────────────────────
 // /sites/$siteId — Public site viewer
-// Renders a published love story site in a sandboxed iframe
+// Renders a published love story site in a sandboxed iframe.
+// Dynamic SSR head: title, description, og:image, canonical,
+// and robots are resolved from the actual site record.
 // ─────────────────────────────────────────────────────────────────
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -11,19 +13,79 @@ import { publishService } from "@/services/publish.service";
 import { analyticsService } from "@/services/analytics.service";
 import type { PublishedSite } from "@/types";
 
+const SITE_BASE = "https://lovecraft.ai";
+const DEFAULT_OG = `${SITE_BASE}/branding/og-default.png`;
+
+// ── Head loader ────────────────────────────────────────────────────
+// TanStack Start supports a loaderDeps + loader pattern for SSR.
+// We keep the head() simple and SSR-friendly by reading loaderData.
 export const Route = createFileRoute("/sites/$siteId")({
-  head: () => ({
-    meta: [{ title: "A Love Story — LoveCraft AI" }, { name: "robots", content: "index,follow" }],
-  }),
+  // Loader fetches the site record on the server for SSR head injection.
+  loader: async ({ params }) => {
+    try {
+      const result = await publishService.getSite(params.siteId);
+      if (!result) return { site: null };
+      return { site: result.site };
+    } catch {
+      return { site: null };
+    }
+  },
+  head: ({ loaderData }) => {
+    const site = loaderData?.site ?? null;
+    const siteId = site?.id ?? "";
+    const canonical = `${SITE_BASE}/sites/${siteId}`;
+
+    // Determine indexability:
+    // Index ONLY when: status === "active" AND is_public !== false AND seo_noindex !== true
+    const isPublic =
+      site?.status === "active" &&
+      site?.is_public !== false &&
+      !((site as unknown as Record<string, unknown>)?.seo_noindex);
+
+    const robots = isPublic ? "index,follow" : "noindex,nofollow";
+
+    // Build dynamic title & description from real site data
+    const siteTitle = site?.title ?? "A Beautiful Memory";
+    const websiteType = site?.website_type ?? "website";
+    const title = site ? `${siteTitle} | LoveCraft.ai` : "A Love Story | LoveCraft.ai";
+    const description = site
+      ? `Explore the ${websiteType} website created for ${siteTitle}. Made with LoveCraft.ai.`
+      : "Explore this beautiful website created with LoveCraft.ai.";
+    const ogImage =
+      ((site as unknown as Record<string, unknown>)?.og_image_url as string | null) ??
+      site?.preview_image ??
+      DEFAULT_OG;
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { name: "robots", content: robots },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:url", content: canonical },
+        { property: "og:image", content: ogImage },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { name: "twitter:title", content: title },
+        { name: "twitter:description", content: description },
+        { name: "twitter:image", content: ogImage },
+      ],
+      links: [{ rel: "canonical", href: canonical }],
+    };
+  },
   component: SiteViewerPage,
 });
 
 function SiteViewerPage() {
   const { siteId } = Route.useParams();
-  const [site, setSite] = useState<PublishedSite | null>(null);
+  const loaderData = Route.useLoaderData();
   const [html, setHtml] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // Use the site metadata already loaded by the route loader if available
+  const [site, setSite] = useState<PublishedSite | null>(loaderData?.site ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,7 +142,7 @@ function SiteViewerPage() {
               <Heart className="text-gold" size={18} />
             </span>
           </div>
-          <p className="font-display italic text-xl text-ivory">Opening your love story…</p>
+          <p className="font-display italic text-xl text-ivory">Opening your story…</p>
         </motion.div>
       </div>
     );
@@ -94,7 +156,7 @@ function SiteViewerPage() {
           <p className="font-display text-8xl text-ivory/10 mb-4">404</p>
           <h1 className="font-display text-3xl text-ivory mb-3">This memory doesn't exist</h1>
           <p className="text-ivory/50 mb-8">
-            The love story you're looking for may have been removed or made private.
+            The story you're looking for may have been removed or made private.
           </p>
           <Link
             to="/"
@@ -121,7 +183,6 @@ function SiteViewerPage() {
           title={site?.title ?? "Love Story"}
           className="w-full h-full border-0"
           sandbox="allow-scripts allow-same-origin"
-          // SEO / security
           referrerPolicy="no-referrer"
         />
       </AnimatePresence>

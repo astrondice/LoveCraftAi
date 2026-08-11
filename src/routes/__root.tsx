@@ -61,25 +61,35 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Root Route — Global SEO defaults
+// Individual routes override title, description, canonical, OG in
+// their own head() functions. This sets the site-wide fallbacks.
+// ─────────────────────────────────────────────────────────────────
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "LoveCraft AI — Cinematic Love Websites" },
+      // Default title — overridden by each route
+      { title: "LoveCraft.ai — AI Website Builder for Beautiful Personal & Business Websites" },
       {
         name: "description",
         content:
-          "Craft an unforgettable, cinematic love website from your photos, music, and words. Curated digital narratives in minutes.",
+          "Create beautiful websites with AI using premium templates, powerful customisation, and fast publishing with LoveCraft.ai.",
       },
-      { property: "og:title", content: "LoveCraft AI — Cinematic Love Websites" },
-      {
-        property: "og:description",
-        content:
-          "Weave photos, music, and words into a private cinematic love website. Download & share instantly.",
-      },
+      // PWA / browser chrome
+      { name: "theme-color", content: "#D4AF37" },
+      // Open Graph — defaults overridden per route
+      { property: "og:site_name", content: "LoveCraft.ai" },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: "https://lovecraft.ai/branding/og-default.png" },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      // Twitter/X card defaults
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:site", content: "@lovecraftai" },
+      { name: "twitter:image", content: "https://lovecraft.ai/branding/og-default.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -93,6 +103,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,400;1,600;1,700&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        // Global WebSite + Organization JSON-LD on every page
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": [
+            {
+              "@type": "WebSite",
+              name: "LoveCraft.ai",
+              url: "https://lovecraft.ai",
+              description:
+                "Create beautiful cinematic websites with AI — love stories, Raksha Bandhan memories, birthdays, weddings and more.",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: {
+                  "@type": "EntryPoint",
+                  urlTemplate:
+                    "https://lovecraft.ai/templates?q={search_term_string}",
+                },
+                "query-input": "required name=search_term_string",
+              },
+            },
+            {
+              "@type": "Organization",
+              name: "LoveCraft.ai",
+              url: "https://lovecraft.ai",
+              logo: "https://lovecraft.ai/branding/logo.png",
+            },
+          ],
+        }),
       },
     ],
   }),

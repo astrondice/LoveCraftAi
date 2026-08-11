@@ -26,7 +26,11 @@ export const Route = createFileRoute("/login")({
     }
   },
   head: () => ({
-    meta: [{ title: "Sign In — LoveCraft AI" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "Sign In — LoveCraft.ai" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+    links: [{ rel: "canonical", href: "https://lovecraft.ai/login" }],
   }),
   component: LoginPage,
 });

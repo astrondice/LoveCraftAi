@@ -7,22 +7,94 @@ import { MagneticButton } from "@/components/ui/MagneticButton";
 import { Logo } from "@/components/ui/Logo";
 import { Play, Sparkles, Heart, Feather, Wand2, Plus, Minus, Globe } from "lucide-react";
 
+const CANONICAL = "https://lovecraft.ai/";
+const OG_IMAGE = "https://lovecraft.ai/branding/og-default.png";
+
+const FAQ_ITEMS = [
+  {
+    q: "Is my data safe?",
+    a: "Everything stays on your device. Photos, music, and messages are never uploaded to any server — the entire website is built in your browser.",
+  },
+  {
+    q: "Can I edit the website after download?",
+    a: "Yes. It's a standard HTML file you can open in any browser and edit in any code editor.",
+  },
+  {
+    q: "Does it work on mobile?",
+    a: "Yes — the generated website is fully responsive and works beautifully on every device.",
+  },
+  {
+    q: "How do I share it with them?",
+    a: "Send the downloaded file over WhatsApp, iMessage, email, or AirDrop. They tap the file and the experience begins.",
+  },
+];
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       {
-        title: "LoveCraft AI — Create The Most Beautiful Gift They'll Ever Receive",
+        title:
+          "AI Website Builder — Create Beautiful Websites with AI | LoveCraft.ai",
       },
       {
         name: "description",
         content:
-          "Transform your photos, music and memories into a cinematic love website. Download instantly. Free forever.",
+          "Create beautiful websites with AI using premium templates, powerful customisation, and fast publishing. Love stories, Raksha Bandhan, birthdays, weddings and more — free forever.",
       },
-      { property: "og:title", content: "LoveCraft AI — Cinematic Love Websites" },
+      { name: "robots", content: "index,follow" },
+      // Open Graph
+      {
+        property: "og:title",
+        content: "AI Website Builder — Create Beautiful Websites with AI | LoveCraft.ai",
+      },
       {
         property: "og:description",
         content:
-          "Weave photos, music, and words into a private cinematic love website. Download & share instantly.",
+          "Create beautiful websites with AI using premium templates, powerful customisation, and fast publishing. Free forever.",
+      },
+      { property: "og:url", content: CANONICAL },
+      { property: "og:image", content: OG_IMAGE },
+      { property: "og:image:width", content: "1200" },
+      { property: "og:image:height", content: "630" },
+      // Twitter/X
+      {
+        name: "twitter:title",
+        content: "AI Website Builder — Create Beautiful Websites with AI | LoveCraft.ai",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Create beautiful websites with AI using premium templates, powerful customisation, and fast publishing. Free forever.",
+      },
+      { name: "twitter:image", content: OG_IMAGE },
+    ],
+    links: [{ rel: "canonical", href: CANONICAL }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: "LoveCraft.ai",
+          url: "https://lovecraft.ai",
+          applicationCategory: "DesignApplication",
+          operatingSystem: "Any",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          description:
+            "AI-powered website builder for creating cinematic love stories, Raksha Bandhan memories, birthday surprises, weddings, portfolios and business pages.",
+        }),
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQ_ITEMS.map((item) => ({
+            "@type": "Question",
+            name: item.q,
+            acceptedAnswer: { "@type": "Answer", text: item.a },
+          })),
+        }),
       },
     ],
   }),
@@ -474,13 +546,22 @@ function Landing() {
           <div className="font-display text-2xl text-ivory">
             LoveCraft<span className="text-gold">AI</span>
           </div>
-          <nav className="flex items-center gap-8 label-caps text-ivory/60 text-[11px]">
+          <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-6 label-caps text-ivory/60 text-[11px]">
             <a href="#how" className="hover:text-ivory transition-colors">
-              How
+              How It Works
             </a>
             <Link to="/generate" className="hover:text-ivory transition-colors">
               Create
             </Link>
+            <a href="/templates" className="hover:text-ivory transition-colors">
+              Templates
+            </a>
+            <a href="/templates/love" className="hover:text-ivory transition-colors">
+              Love
+            </a>
+            <a href="/templates/raksha-bandhan" className="hover:text-ivory transition-colors">
+              Raksha Bandhan
+            </a>
             <a href="#faq" className="hover:text-ivory transition-colors">
               FAQ
             </a>

@@ -16,7 +16,15 @@ import { draftRecovery } from "@/lib/draft-recovery";
 import { useAuth } from "@/hooks/use-auth";
 import { getPendingPublish } from "@/lib/pending-publish";
 import { TemplateCard } from "@/features/templates/TemplateCard";
-import { TEMPLATE_LIST, TEMPLATE_CATEGORIES, TEMPLATES_DATA, type TemplateSpec } from "@/lib/templates.data";
+import { TEMPLATE_LIST, TEMPLATES_DATA, type TemplateSpec } from "@/lib/templates.data";
+import { CATEGORY_LIST, getCategoryBySlug } from "@/lib/categories.data";
+import { toast } from "sonner";
+import { CategoryNavigation } from "@/components/ui/CategoryNavigation";
+import { CategoryHeader } from "@/components/ui/CategoryHeader";
+import { categoryService } from "@/services/category.service";
+import type { CategorySortOption } from "@/types/category.types";
+
+
 
 // Lazy-loaded modal components for code splitting & bundle optimization
 const PublishModal = lazy(() =>
@@ -46,13 +54,15 @@ import {
 export const Route = createFileRoute("/generate")({
   head: () => ({
     meta: [
-      { title: "Create your love story — LoveCraft AI" },
+      { title: "Create Your Website — LoveCraft.ai" },
       {
         name: "description",
-        content: "Compose your cinematic love website in four acts.",
+        content: "Compose your cinematic website in four steps with AI.",
       },
-      { name: "robots", content: "noindex" },
+      // Application wizard — not indexable content
+      { name: "robots", content: "noindex,nofollow" },
     ],
+    links: [{ rel: "canonical", href: "https://lovecraft.ai/generate" }],
   }),
   component: GeneratePage,
 });
@@ -647,9 +657,14 @@ function Row({ label, value }: { label: string; value: string }) {
 /* ================================ STEP 3 ================================ */
 function ThemeStep() {
   const { setTheme, setStep } = useLovecraft();
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
+
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [onlyFavorites, setOnlyFavorites] = useState(false);
+  const [sortBy, setSortBy] = useState<CategorySortOption>("featured");
+  const [showUnpublished, setShowUnpublished] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(() => {
     if (typeof window === "undefined") return new Set();
     try {
@@ -677,91 +692,80 @@ function ThemeStep() {
   };
 
   const handleUseTemplate = (t: TemplateSpec) => {
+    // SECURITY GUARD: Ensure template is published OR user is admin
+    if (!categoryService.canUserUseTemplate(t.id, user?.role)) {
+      toast.error("This template is under development and not available to the public yet.");
+      return;
+    }
+
     setTheme(t.id);
     setPreviewTemplate(null);
     setShowCompareModal(false);
     setStep(3); // Enter Builder / Generation Step
   };
 
-  // Filter templates
-  const filteredTemplates = TEMPLATE_LIST.filter((t) => {
-    const matchesCategory = selectedCategory === "All" || t.category === selectedCategory;
-    const matchesSearch =
-      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesFavorite = !onlyFavorites || favorites.has(t.id);
-    return matchesCategory && matchesSearch && matchesFavorite;
-  });
+  // Filter templates dynamically via category service with strict status rules
+  const activeCategorySpec = getCategoryBySlug(selectedCategory);
+  const filteredTemplates = categoryService.filterTemplates(
+    selectedCategory,
+    searchQuery,
+    onlyFavorites,
+    favorites,
+    sortBy,
+    isAdmin && showUnpublished // Only admins can opt to include unpublished templates
+  );
 
   return (
     <div className="pb-10">
-      <div className="text-center mb-8">
-        <span className="label-caps text-gold">Step 03 // Handcrafted Templates</span>
-        <h2 className="font-display text-4xl md:text-5xl text-ivory mt-3">
-          Explore your <span className="italic gold-shimmer">world</span>
-        </h2>
-        <p className="text-ivory/60 text-sm mt-2 max-w-xl mx-auto">
-          Every template is 100% handcrafted with custom particle FX, unique visual layouts, and responsive typography.
-        </p>
+      {/* Admin Mode Toggle Banner (Only visible to authenticated Admins) */}
+      {isAdmin && (
+        <div className="max-w-7xl mx-auto mb-4 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded bg-amber-500 text-charcoal font-bold text-[10px] label-caps">
+              Admin Mode
+            </span>
+            <span className="text-amber-200 text-xs font-medium">
+              Toggle visibility to preview and test in-development templates
+            </span>
+          </div>
+          <button
+            onClick={() => setShowUnpublished(!showUnpublished)}
+            className={`px-3 py-1 rounded-xl text-xs label-caps transition-all font-bold ${
+              showUnpublished
+                ? "bg-amber-500 text-charcoal shadow-md"
+                : "bg-ivory/10 text-ivory/70 hover:text-ivory"
+            }`}
+          >
+            {showUnpublished ? "Showing All (Incl. Drafts)" : "Showing Published Only"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Category Navigation Bar ────────────────────────────────────────── */}
+      <div className="mb-6">
+        <CategoryNavigation
+          categories={CATEGORY_LIST}
+          activeCategoryId={selectedCategory}
+          onSelectCategory={(id) => setSelectedCategory(id)}
+        />
       </div>
 
-      {/* ── Search & Filters Header Bar ────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto mb-8 space-y-4">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          {/* Search Input */}
-          <div className="relative w-full sm:w-80">
-            <input
-              type="text"
-              placeholder="Search templates, tags, vibes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-2xl bg-ivory/5 border border-ivory/15 focus:border-gold text-ivory text-xs placeholder:text-ivory/40 outline-none transition-all"
-            />
-          </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-            {/* Favorites Filter Toggle */}
-            <button
-              onClick={() => setOnlyFavorites(!onlyFavorites)}
-              className={`px-4 py-2 rounded-2xl border text-xs label-caps transition-all flex items-center gap-1.5 ${
-                onlyFavorites
-                  ? "bg-rose-500/20 border-rose-500 text-rose-300 font-bold"
-                  : "bg-ivory/5 border-ivory/15 text-ivory/70 hover:text-ivory"
-              }`}
-            >
-              ❤️ Favorites ({favorites.size})
-            </button>
+      {/* ── Category Hero Header & Controls ────────────────────────────────── */}
+      <CategoryHeader
+        category={activeCategorySpec}
+        templateCount={filteredTemplates.length}
+        searchQuery={searchQuery}
+        onSearchChange={(q) => setSearchQuery(q)}
+        onlyFavorites={onlyFavorites}
+        onToggleOnlyFavorites={() => setOnlyFavorites(!onlyFavorites)}
+        favoritesCount={favorites.size}
+        sortBy={sortBy}
+        onSortChange={(sort) => setSortBy(sort)}
+        compareCount={compareList.length}
+        onOpenCompare={() => setShowCompareModal(true)}
+      />
 
-            {/* Compare Button */}
-            {compareList.length > 0 && (
-              <button
-                onClick={() => setShowCompareModal(true)}
-                className="px-4 py-2 rounded-2xl bg-gold text-charcoal font-bold text-xs label-caps transition-all flex items-center gap-1.5 shadow-lg"
-              >
-                ✨ Compare ({compareList.length}/2)
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Categories Chips Bar */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
-          {TEMPLATE_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 rounded-full text-[11px] label-caps whitespace-nowrap transition-all border ${
-                selectedCategory === cat
-                  ? "bg-gold text-charcoal font-bold border-gold shadow-md"
-                  : "bg-ivory/5 border-ivory/10 text-ivory/60 hover:text-ivory hover:border-ivory/25"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* ── Responsive Templates Grid ───────────────────────────────────────────── */}
       {filteredTemplates.length === 0 ? (

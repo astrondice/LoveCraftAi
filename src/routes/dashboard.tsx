@@ -51,7 +51,11 @@ export const Route = createFileRoute("/dashboard")({
     }
   },
   head: () => ({
-    meta: [{ title: "My Sites — LoveCraft AI" }, { name: "robots", content: "noindex" }],
+    meta: [
+      { title: "My Sites — LoveCraft.ai" },
+      { name: "robots", content: "noindex,nofollow" },
+    ],
+    links: [{ rel: "canonical", href: "https://lovecraft.ai/dashboard" }],
   }),
   component: DashboardPage,
 });

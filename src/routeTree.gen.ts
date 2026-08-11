@@ -16,6 +16,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as SitesSiteIdRouteImport } from './routes/sites.$siteId'
+import { Route as TemplatesIndexRouteImport } from './routes/templates.index'
+import { Route as TemplatesCategoryRouteImport } from './routes/templates.$category'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -52,6 +54,16 @@ const SitesSiteIdRoute = SitesSiteIdRouteImport.update({
   path: '/sites/$siteId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TemplatesIndexRoute = TemplatesIndexRouteImport.update({
+  id: '/templates/',
+  path: '/templates/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TemplatesCategoryRoute = TemplatesCategoryRouteImport.update({
+  id: '/templates/$category',
+  path: '/templates/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +73,8 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/sites/$siteId': typeof SitesSiteIdRoute
+  '/templates/$category': typeof TemplatesCategoryRoute
+  '/templates/': typeof TemplatesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +84,8 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/sites/$siteId': typeof SitesSiteIdRoute
+  '/templates/$category': typeof TemplatesCategoryRoute
+  '/templates': typeof TemplatesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +96,8 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/sites/$siteId': typeof SitesSiteIdRoute
+  '/templates/$category': typeof TemplatesCategoryRoute
+  '/templates/': typeof TemplatesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,6 +109,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/callback'
     | '/sites/$siteId'
+    | '/templates/$category'
+    | '/templates/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -100,6 +120,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/callback'
     | '/sites/$siteId'
+    | '/templates/$category'
+    | '/templates'
   id:
     | '__root__'
     | '/'
@@ -109,6 +131,8 @@ export interface FileRouteTypes {
     | '/signup'
     | '/auth/callback'
     | '/sites/$siteId'
+    | '/templates/$category'
+    | '/templates/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -119,6 +143,8 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   SitesSiteIdRoute: typeof SitesSiteIdRoute
+  TemplatesCategoryRoute: typeof TemplatesCategoryRoute
+  TemplatesIndexRoute: typeof TemplatesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -172,6 +198,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitesSiteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/templates/': {
+      id: '/templates/'
+      path: '/templates'
+      fullPath: '/templates/'
+      preLoaderRoute: typeof TemplatesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/templates/$category': {
+      id: '/templates/$category'
+      path: '/templates/$category'
+      fullPath: '/templates/$category'
+      preLoaderRoute: typeof TemplatesCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -183,6 +223,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   SitesSiteIdRoute: SitesSiteIdRoute,
+  TemplatesCategoryRoute: TemplatesCategoryRoute,
+  TemplatesIndexRoute: TemplatesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
