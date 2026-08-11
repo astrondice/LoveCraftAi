@@ -115,22 +115,23 @@ ON CONFLICT (id) DO UPDATE SET public = true;
 -- Public access policy for storage objects
 DROP POLICY IF EXISTS "Public access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin write access for promotional videos storage" ON storage.objects;
+DROP POLICY IF EXISTS "Admin update access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin delete access for promotional videos storage" ON storage.objects;
+DROP POLICY IF EXISTS "Allow upload to promotional-videos storage" ON storage.objects;
 
 CREATE POLICY "Public access for promotional videos storage"
   ON storage.objects FOR SELECT
   USING (bucket_id = 'promotional-videos');
 
-CREATE POLICY "Admin write access for promotional videos storage"
+CREATE POLICY "Allow upload to promotional-videos storage"
   ON storage.objects FOR INSERT
-  WITH CHECK (
-    bucket_id = 'promotional-videos' AND
-    auth.uid() IS NOT NULL
-  );
+  WITH CHECK (bucket_id = 'promotional-videos');
 
-CREATE POLICY "Admin delete access for promotional videos storage"
+CREATE POLICY "Allow update in promotional-videos storage"
+  ON storage.objects FOR UPDATE
+  USING (bucket_id = 'promotional-videos')
+  WITH CHECK (bucket_id = 'promotional-videos');
+
+CREATE POLICY "Allow delete in promotional-videos storage"
   ON storage.objects FOR DELETE
-  USING (
-    bucket_id = 'promotional-videos' AND
-    auth.uid() IS NOT NULL
-  );
+  USING (bucket_id = 'promotional-videos');
