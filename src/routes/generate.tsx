@@ -75,8 +75,10 @@ function GeneratePage() {
   const [showResume, setShowResume] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [publishOpen, setPublishOpen] = useState(false);
 
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+
 
   // 30-second Auto-save timer
   useEffect(() => {
@@ -114,7 +116,7 @@ function GeneratePage() {
     const autoPublish = params.get("autoPublish") === "true";
     const pending = getPendingPublish();
 
-    if ((autoPublish || pending) && isAuthenticated && user) {
+    if (!isLoading && (autoPublish || pending) && isAuthenticated && user) {
       console.log("[LoveCraft GeneratePage] Auto-restoring pending publish state");
       if (pending) {
         if (pending.name1) s.setField("name1", pending.name1);
@@ -131,9 +133,20 @@ function GeneratePage() {
         if (pending.video && !s.video) s.setVideo(pending.video);
       }
       s.setStep(3); // Jump to Step 4 ("The Moment")
+
+      if (autoPublish) {
+        // Strip autoPublish from URL so refresh doesn't auto-open modal again
+        const url = new URL(window.location.href);
+        url.searchParams.delete("autoPublish");
+        window.history.replaceState({}, "", url.toString());
+
+        // Auto-open publish modal
+        setPublishOpen(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user]);
+  }, [isLoading, isAuthenticated, user]);
+
 
   useEffect(() => {
     // Lenis smooth scroll

@@ -37,7 +37,7 @@ import {
 } from "@/lib/pending-publish";
 
 export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [stage, setStage] = useState<Stage>("idle");
   const [progress, setProgress] = useState<PublishProgress>({
     phase: "idle",
@@ -87,6 +87,9 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       return;
     }
 
+    // Wait for auth initialization before checking user state
+    if (isLoading) return;
+
     const currentUser = useAuthStore.getState().user ?? user;
 
     // Modal just opened or state updated
@@ -102,7 +105,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, isAuthenticated, user]);
+  }, [isOpen, isAuthenticated, isLoading, user]);
 
   const handleAuthSuccess = () => {
     const currentUser = useAuthStore.getState().user ?? user;
@@ -110,6 +113,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       void startPublish(currentUser.id);
     }
   };
+
 
   const handleCreateAnother = () => {
     onClose();
