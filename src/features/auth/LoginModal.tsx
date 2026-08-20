@@ -52,7 +52,17 @@ export function LoginModal({
   };
 
   const handleOAuth = (provider: "google" | "github") =>
-    handle(() => signInWithOAuth(provider, redirectTo));
+    handle(async () => {
+      console.log("[PUBLISH DEBUG] handleOAuth clicked:", provider, "redirectTo:", redirectTo);
+      const { getPendingPublish, savePendingPublish } = await import("@/lib/pending-publish");
+      const pendingInput = getPendingPublish();
+      if (pendingInput) {
+        await savePendingPublish(pendingInput, redirectTo);
+        console.log("[PUBLISH DEBUG] pending state saved before OAuth redirect");
+      }
+      await signInWithOAuth(provider, redirectTo);
+    });
+
 
   const handleMagicLink = async (e: FormEvent) => {
     e.preventDefault();

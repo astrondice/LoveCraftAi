@@ -46,59 +46,51 @@ function AuthCallbackPage() {
 
   useEffect(() => {
     async function handleCallback() {
-      console.log("[LoveCraft Auth] /auth/callback reached", {
+      console.log("[PUBLISH DEBUG] callback entered", {
         hasCode: !!search.code,
         hasError: !!search.error,
         next: search.next,
       });
 
       try {
-        // 1. Handle Supabase error returned in query params
         if (search.error) {
           throw new Error(search.error_description ?? search.error);
         }
 
         let session = null;
 
-        // 2a. PKCE flow: exchange the authorization code for a session
         if (search.code) {
-          console.log("[LoveCraft Auth] Exchanging PKCE code for session");
+          console.log("[PUBLISH DEBUG] code present — exchanging PKCE code for session");
           const { data, error } = await supabase.auth.exchangeCodeForSession(search.code);
           if (error) throw new Error(error.message);
           session = data.session;
-          console.log("[LoveCraft Auth] PKCE exchange successful, user:", session?.user?.email);
+          console.log("[PUBLISH DEBUG] session exchanged:", session?.user?.id);
         } else if (search.token_hash) {
-          // 2b. PKCE magic-link / email OTP flow
-          console.log("[LoveCraft Auth] Verifying PKCE token_hash (magic link)");
+          console.log("[PUBLISH DEBUG] verifying PKCE token_hash (magic link)");
           const { data, error } = await supabase.auth.verifyOtp({
             token_hash: search.token_hash,
             type: (search.type as "email" | "recovery" | "invite") ?? "email",
           });
           if (error) throw new Error(error.message);
           session = data.session;
-          console.log("[LoveCraft Auth] Magic-link verified, user:", session?.user?.email);
+          console.log("[PUBLISH DEBUG] magic link session exchanged:", session?.user?.id);
         } else {
-          // Fallback: check if Supabase already set a session (shouldn't happen with PKCE
-          // but covers edge cases like direct navigation to /auth/callback).
-          console.warn("[LoveCraft Auth] No code or token_hash in URL — checking existing session");
+          console.warn("[PUBLISH DEBUG] checking fallback session");
           const { data } = await supabase.auth.getSession();
           session = data.session;
           if (!session) {
-            throw new Error(
-              "No authentication code received. Please try signing in again.",
-            );
+            throw new Error("No authentication code received. Please try signing in again.");
           }
-          console.log("[LoveCraft Auth] Fallback session found:", session.user?.email);
+          console.log("[PUBLISH DEBUG] fallback session found:", session.user?.id);
         }
 
         if (!session?.user) {
           throw new Error("No session returned after authentication.");
         }
 
-        // 3. Update the auth store directly
         const { authService } = await import("@/services/auth.service");
         const userProfile = await authService.getCurrentUser();
-        console.log("[LoveCraft Auth] SESSION_RESTORED:", userProfile?.email);
+        console.log("[PUBLISH DEBUG] session restored:", userProfile?.email);
         setUser(userProfile);
 
         setStatus("success");
@@ -107,10 +99,15 @@ function AuthCallbackPage() {
         const pendingSync = getPendingPublish();
         const hasPending = Boolean(pendingAction || pendingSync);
 
-        const targetNext = pendingAction?.returnTo ?? search.next ?? (hasPending ? "/generate?autoPublish=true" : "/dashboard");
-        console.log("[LoveCraft Auth] AUTH_CALLBACK completed, next route:", targetNext);
+        if (hasPending) {
+          console.log("[PUBLISH DEBUG] pending action found", { returnTo: pendingAction?.returnTo });
+        } else {
+          console.log("[PUBLISH DEBUG] pending action missing");
+        }
 
-        // Small delay so the user sees the success heart animation
+        const targetNext = pendingAction?.returnTo ?? search.next ?? (hasPending ? "/generate?autoPublish=true" : "/dashboard");
+        console.log("[PUBLISH DEBUG] redirect destination:", targetNext);
+
         setTimeout(() => {
           if (targetNext.includes("?")) {
             window.location.href = targetNext;
@@ -118,6 +115,7 @@ function AuthCallbackPage() {
             void navigate({ to: targetNext as "/" });
           }
         }, 800);
+
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Authentication failed";

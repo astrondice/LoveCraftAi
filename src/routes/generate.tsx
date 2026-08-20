@@ -117,12 +117,20 @@ function GeneratePage() {
     async function restorePending() {
       const params = new URLSearchParams(window.location.search);
       const autoPublish = params.get("autoPublish") === "true";
+      console.log("[PUBLISH DEBUG] generate mounted", {
+        autoPublish,
+        isLoading,
+        isAuthenticated,
+        userId: user?.id ?? "none",
+      });
+
       const pendingAction = await getPendingPublishAction();
       const pending = pendingAction?.input ?? getPendingPublish();
 
       if (!isLoading && (autoPublish || pending) && isAuthenticated && user) {
-        console.log("[Publish] PENDING_PUBLISH_RESTORED", {
+        console.log("[PUBLISH DEBUG] pending restored", {
           hasPendingInput: !!pending,
+          name1: pending?.name1,
           autoPublish,
         });
 
@@ -143,7 +151,7 @@ function GeneratePage() {
         s.setStep(3); // Jump to Step 4 ("The Moment")
 
         if (autoPublish) {
-          console.log("[Publish] PUBLISH_RESUMED — opening publish modal");
+          console.log("[PUBLISH DEBUG] modal opened (auto-resuming publish)");
           // Strip autoPublish from URL so refresh doesn't auto-open modal again
           const url = new URL(window.location.href);
           url.searchParams.delete("autoPublish");
@@ -158,6 +166,7 @@ function GeneratePage() {
     void restorePending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, user]);
+
 
 
 

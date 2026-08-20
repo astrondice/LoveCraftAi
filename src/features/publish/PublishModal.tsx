@@ -53,21 +53,34 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
   const startPublish = useCallback(
     async (userId: string) => {
       if (isPublishingRef.current) {
-        console.warn("[Publish] startPublish already in progress — skipping duplicate trigger");
+        console.warn("[PUBLISH DEBUG] startPublish already in progress — skipping duplicate trigger");
         return;
       }
       isPublishingRef.current = true;
       setStage("publishing");
       setError(null);
 
-      // Resolve active publish input (fallback to pending storage if modal input is blank)
-      const pendingInput = getPendingPublish();
-      const hasDirectContent = Boolean(
-        input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0)),
-      );
-      const activeInput: PublishInput = hasDirectContent ? input : (pendingInput ?? input);
+      // Resolve active publish input from IndexedDB / localStorage or input
+      const { getPendingPublishAction, getPendingPublish, clearPendingPublish } = await import("@/lib/pending-publish");
+      const pendingAction = await getPendingPublishAction();
+      const pending = pendingAction?.input ?? getPendingPublish();
 
-      console.log("[Publish] PUBLISH_CLICK / START", { userId });
+      // Merge direct input with pending saved state so no user field is lost
+      const activeInput: PublishInput = {
+        projectId: input?.projectId ?? pending?.projectId,
+        name1: input?.name1 || pending?.name1 || "",
+        name2: input?.name2 || pending?.name2 || "",
+        date: input?.date || pending?.date || "",
+        duration: input?.duration || pending?.duration || "",
+        memory: input?.memory || pending?.memory || "",
+        message: input?.message || pending?.message || "",
+        themeId: input?.themeId || pending?.themeId || "cosmic",
+        photos: (input?.photos && input.photos.length > 0) ? input.photos : (pending?.photos ?? []),
+        music: input?.music ?? pending?.music ?? null,
+        video: input?.video ?? pending?.video ?? null,
+      };
+
+      console.log("[PUBLISH DEBUG] startPublish called", { userId, activeInputName: activeInput.name1 });
 
       try {
         const res = await publishService.publish(
@@ -75,13 +88,13 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
           userId,
           (p) => setProgress(p),
         );
-        void clearPendingPublish();
+        await clearPendingPublish();
         setResult(res);
         setStage("success");
-        console.log("[Publish] PUBLISH_SUCCESS", { url: res.url });
+        console.log("[PUBLISH DEBUG] success", { url: res.url });
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Publishing failed";
-        console.error("[Publish] PUBLISH_FAILED:", msg);
+        console.error("[PUBLISH DEBUG] failure:", msg);
         setError(msg);
         setStage("error");
       } finally {
@@ -93,36 +106,43 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
 
   // Trigger publish when modal opens or user authenticates
   useEffect(() => {
-    if (!isOpen) {
-      // Reset state when modal closes
-      isPublishingRef.current = false;
-      setStage("idle");
-      setProgress({ phase: "idle", percent: 0, message: "Starting…" });
-      setResult(null);
-      setError(null);
-      return;
+    async function checkAuthAndPublish() {
+      if (!isOpen) {
+        isPublishingRef.current = false;
+        setStage("idle");
+        setProgress({ phase: "idle", percent: 0, message: "Starting…" });
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      // Wait for auth initialization before checking user state
+      if (isLoading) {
+        console.log("[PUBLISH DEBUG] Waiting for auth initialization (isLoading === true)");
+        return;
+      }
+
+      const currentUser = useAuthStore.getState().user ?? user;
+
+      if (!isAuthenticated || !currentUser) {
+        console.log("[PUBLISH DEBUG] auth required — saving pending state and showing auth gate");
+        if (input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0))) {
+          const { savePendingPublish } = await import("@/lib/pending-publish");
+          await savePendingPublish(input, oauthRedirectUrl);
+          console.log("[PUBLISH DEBUG] pending state saved");
+        }
+        setStage("auth");
+      } else {
+        if (stage === "idle" || stage === "auth") {
+          void startPublish(currentUser.id);
+        }
+      }
     }
 
-    // Wait for auth initialization before checking user state
-    if (isLoading) return;
-
-    const currentUser = useAuthStore.getState().user ?? user;
-
-    // Modal just opened or state updated
-    if (!isAuthenticated || !currentUser) {
-      console.log("[Publish] AUTH_REQUIRED — opening auth gate");
-      // Save pending publish input before triggering auth modal / OAuth
-      if (input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0))) {
-        void savePendingPublish(input);
-      }
-      setStage("auth");
-    } else {
-      if (stage === "idle" || stage === "auth") {
-        void startPublish(currentUser.id);
-      }
-    }
+    void checkAuthAndPublish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isAuthenticated, isLoading, user]);
+
 
   const handleAuthSuccess = () => {
     const currentUser = useAuthStore.getState().user ?? user;
