@@ -68,7 +68,8 @@ export const storageService = {
     // 1. File security validation
     const validation = await validateFileSignature(rawBlob, filename);
     if (!validation.valid) {
-      console.warn(`[Storage] Photo validation warning for ${filename}:`, validation.error);
+      console.error(`[Storage] Photo validation failed for ${filename}:`, validation.error);
+      throw new Error(validation.error || "File security validation failed");
     }
 
     // 2. Optimize image (convert to WebP, strip EXIF, downscale if >2048px)
@@ -133,7 +134,8 @@ export const storageService = {
     // File security validation
     const validation = await validateFileSignature(blob, filename);
     if (!validation.valid) {
-      console.warn(`[Storage] ${type} validation warning for ${filename}:`, validation.error);
+      console.error(`[Storage] ${type} validation failed for ${filename}:`, validation.error);
+      throw new Error(validation.error || `${type} file security validation failed`);
     }
 
     const ext = mimeToExt(blob.type);
@@ -216,20 +218,23 @@ export const storageService = {
    * Delete project assets.
    */
   async deleteProjectAssets(userId: string, projectId: string): Promise<void> {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !projectId) return;
 
-    const prefix = `users/${userId}`;
+    const subfolders = [`images/${projectId}`, `audio/${projectId}`, `videos/${projectId}`];
     console.log(
-      `[Storage] deleteProjectAssets → bucket="${STORAGE_BUCKETS.uploads}" prefix="${prefix}"`,
+      `[Storage] deleteProjectAssets → bucket="${STORAGE_BUCKETS.uploads}" userId="${userId}" projectId="${projectId}"`,
     );
 
-    const { data } = await supabase.storage
-      .from(STORAGE_BUCKETS.uploads)
-      .list(prefix, { limit: 1000 });
+    for (const folder of subfolders) {
+      const prefix = `users/${userId}/${folder}`;
+      const { data } = await supabase.storage
+        .from(STORAGE_BUCKETS.uploads)
+        .list(prefix, { limit: 1000 });
 
-    if (data && data.length > 0) {
-      const paths = data.map((f) => `${prefix}/${f.name}`);
-      await supabase.storage.from(STORAGE_BUCKETS.uploads).remove(paths);
+      if (data && data.length > 0) {
+        const paths = data.map((f) => `${prefix}/${f.name}`);
+        await supabase.storage.from(STORAGE_BUCKETS.uploads).remove(paths);
+      }
     }
   },
 

@@ -1,14 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
-// Auth Store — Zustand store for authentication state
-// ─────────────────────────────────────────────────────────────────
-// FIX SUMMARY:
-//  1. Track subscription to prevent duplicate onAuthStateChange listeners.
-//  2. signInWithPassword now waits for the session to propagate before
-//     resolving — callers can safely navigate() right after await.
-//  3. initialize() is idempotent: a second call re-uses the existing
-//     subscription instead of stacking another one.
-//  4. signOut navigates to /login via the router so beforeLoad re-runs.
-// ─────────────────────────────────────────────────────────────────
 import { create } from "zustand";
 import { authService } from "@/services/auth.service";
 import type { User, OAuthProvider } from "@/types";

@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
-// Publish Types — Aligned with public.websites schema
-// ─────────────────────────────────────────────────────────────────
-
 export type SiteStatus = "active" | "inactive" | "deleted" | "trash";
 
 export interface Website {

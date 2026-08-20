@@ -101,23 +101,16 @@ export const authService = {
 
     console.log("[LoveCraft Auth] getCurrentUser: session found for", authUser.email);
 
-    // 2. Try to read existing profile from public.profiles or public.users
+    // 2. Read existing profile from public.users
     let existing: User | null = null;
 
-    const { data: profileData } = await supabase
-      .from("profiles")
+    const { data: userData } = await supabase
+      .from("users")
       .select("*")
       .eq("id", authUser.id)
       .maybeSingle();
 
-    if (profileData) {
-      existing = profileData as User;
-    } else {
-      const { data: userData } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authUser.id)
-        .maybeSingle();
+    if (userData) {
       existing = userData as User;
     }
 
@@ -142,20 +135,11 @@ export const authService = {
       plan: "free" as const,
     };
 
-    let { data: upserted } = await supabase
-      .from("profiles")
+    const { data: upserted } = await supabase
+      .from("users")
       .upsert(profilePayload, { onConflict: "id" })
       .select("*")
       .maybeSingle();
-
-    if (!upserted) {
-      const { data: userUpserted } = await supabase
-        .from("users")
-        .upsert(profilePayload, { onConflict: "id" })
-        .select("*")
-        .maybeSingle();
-      upserted = userUpserted;
-    }
 
     if (!upserted) {
       console.warn(

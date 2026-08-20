@@ -59,35 +59,71 @@ ON public.promotional_video_events (video_id, event_type);
 ALTER TABLE public.promotional_videos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.promotional_video_events ENABLE ROW LEVEL SECURITY;
 
--- Drop old policies if existing to avoid conflicts
 DROP POLICY IF EXISTS "Public can view active promotional videos" ON public.promotional_videos;
 DROP POLICY IF EXISTS "Admins have full access to promotional videos" ON public.promotional_videos;
 DROP POLICY IF EXISTS "Anyone can insert promotional video events" ON public.promotional_video_events;
 DROP POLICY IF EXISTS "Admins can view promotional video events" ON public.promotional_video_events;
 DROP POLICY IF EXISTS "Permissive promotional videos table policy" ON public.promotional_videos;
 
--- Master permissive policy for promotional_videos table
-CREATE POLICY "Permissive promotional videos table policy"
+-- Public can view active promotional videos
+CREATE POLICY "Public can view active promotional videos"
+  ON public.promotional_videos
+  FOR SELECT
+  TO public
+  USING (
+    is_active = true 
+    AND (start_at IS NULL OR start_at <= now())
+    AND (end_at IS NULL OR end_at >= now())
+  );
+
+-- Only authenticated admins or service_role can modify promotional videos
+CREATE POLICY "Admins have full access to promotional videos"
   ON public.promotional_videos
   FOR ALL
-  TO public
-  USING (true)
-  WITH CHECK (true);
+  TO authenticated
+  USING (
+    auth.role() = 'service_role' OR
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE public.users.id = auth.uid()
+      AND public.users.role IN ('admin', 'superadmin')
+    )
+  )
+  WITH CHECK (
+    auth.role() = 'service_role' OR
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE public.users.id = auth.uid()
+      AND public.users.role IN ('admin', 'superadmin')
+    )
+  );
 
 -- Anyone can log analytics events
 CREATE POLICY "Anyone can insert promotional video events"
   ON public.promotional_video_events
-  FOR ALL
+  FOR INSERT
   TO public
-  USING (true)
   WITH CHECK (true);
+
+-- Admins can read analytics events
+CREATE POLICY "Admins can view promotional video events"
+  ON public.promotional_video_events
+  FOR SELECT
+  TO authenticated
+  USING (
+    auth.role() = 'service_role' OR
+    EXISTS (
+      SELECT 1 FROM public.users
+      WHERE public.users.id = auth.uid()
+      AND public.users.role IN ('admin', 'superadmin')
+    )
+  );
 
 -- 5. Storage Bucket Setup & Permissive Policies
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('promotional-videos', 'promotional-videos', true)
 ON CONFLICT (id) DO UPDATE SET public = true;
 
--- Drop all previous policies to avoid conflicts
 DROP POLICY IF EXISTS "Public access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin write access for promotional videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Admin update access for promotional videos storage" ON storage.objects;
@@ -97,10 +133,55 @@ DROP POLICY IF EXISTS "Allow update in promotional-videos storage" ON storage.ob
 DROP POLICY IF EXISTS "Allow delete in promotional-videos storage" ON storage.objects;
 DROP POLICY IF EXISTS "Permissive promotional videos storage policy" ON storage.objects;
 
--- Master permissive policy for promotional-videos bucket
-CREATE POLICY "Permissive promotional videos storage policy"
+-- Public can read objects in promotional-videos bucket
+CREATE POLICY "Public access for promotional videos storage"
   ON storage.objects
-  FOR ALL
+  FOR SELECT
   TO public
-  USING (bucket_id = 'promotional-videos')
-  WITH CHECK (bucket_id = 'promotional-videos');
+  USING (bucket_id = 'promotional-videos');
+
+-- Only authenticated admins can write/delete objects in promotional-videos bucket
+CREATE POLICY "Admin write access for promotional videos storage"
+  ON storage.objects
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    bucket_id = 'promotional-videos' AND (
+      auth.role() = 'service_role' OR
+      EXISTS (
+        SELECT 1 FROM public.users
+        WHERE public.users.id = auth.uid()
+        AND public.users.role IN ('admin', 'superadmin')
+      )
+    )
+  );
+
+CREATE POLICY "Admin update access for promotional videos storage"
+  ON storage.objects
+  FOR UPDATE
+  TO authenticated
+  USING (
+    bucket_id = 'promotional-videos' AND (
+      auth.role() = 'service_role' OR
+      EXISTS (
+        SELECT 1 FROM public.users
+        WHERE public.users.id = auth.uid()
+        AND public.users.role IN ('admin', 'superadmin')
+      )
+    )
+  );
+
+CREATE POLICY "Admin delete access for promotional videos storage"
+  ON storage.objects
+  FOR DELETE
+  TO authenticated
+  USING (
+    bucket_id = 'promotional-videos' AND (
+      auth.role() = 'service_role' OR
+      EXISTS (
+        SELECT 1 FROM public.users
+        WHERE public.users.id = auth.uid()
+        AND public.users.role IN ('admin', 'superadmin')
+      )
+    )
+  );

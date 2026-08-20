@@ -1,18 +1,8 @@
--- ═══════════════════════════════════════════════════════════════════
--- LoveCraft.ai — COMPLETE DATABASE SETUP (ONE-SHOT MIGRATION)
--- ═══════════════════════════════════════════════════════════════════
--- How to apply this migration:
--- 1. Open your Supabase Dashboard: https://supabase.com/dashboard
--- 2. Select your project (oucygqsltknoderruayc)
--- 3. Go to SQL Editor (left sidebar) → Click "New query"
--- 4. Copy and paste ALL text below into the editor and click "Run"
--- ═══════════════════════════════════════════════════════════════════
-
--- ─── Extensions ────────────────────────────────────────────────────
+-- Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- ─── Updated-at trigger helper ─────────────────────────────────────
+-- Updated-at trigger helper
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -21,9 +11,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ════════════════════════════════════════════════════════════════════
 -- USERS (extends auth.users)
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.users (
   id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email        TEXT UNIQUE NOT NULL,
@@ -64,9 +52,7 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ════════════════════════════════════════════════════════════════════
 -- PROJECTS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.projects (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -102,9 +88,7 @@ CREATE TRIGGER projects_updated_at
   BEFORE UPDATE ON public.projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ════════════════════════════════════════════════════════════════════
 -- PROJECT VERSIONS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.project_versions (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id    UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -117,9 +101,7 @@ CREATE TABLE IF NOT EXISTS public.project_versions (
 
 CREATE INDEX IF NOT EXISTS idx_versions_project ON public.project_versions(project_id);
 
--- ════════════════════════════════════════════════════════════════════
 -- PUBLISHED SITES
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.websites (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -150,9 +132,7 @@ CREATE TRIGGER sites_updated_at
   BEFORE UPDATE ON public.websites
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ════════════════════════════════════════════════════════════════════
 -- ASSETS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.assets (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -170,9 +150,7 @@ CREATE TABLE IF NOT EXISTS public.assets (
 CREATE INDEX IF NOT EXISTS idx_assets_user    ON public.assets(user_id);
 CREATE INDEX IF NOT EXISTS idx_assets_project ON public.assets(project_id);
 
--- ════════════════════════════════════════════════════════════════════
 -- ANALYTICS EVENTS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.analytics_events (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   site_id     UUID NOT NULL REFERENCES public.websites(id) ON DELETE CASCADE,
@@ -192,9 +170,7 @@ CREATE INDEX IF NOT EXISTS idx_analytics_site    ON public.analytics_events(site
 CREATE INDEX IF NOT EXISTS idx_analytics_created ON public.analytics_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_analytics_type    ON public.analytics_events(event_type);
 
--- ════════════════════════════════════════════════════════════════════
 -- SUBSCRIPTIONS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.subscriptions (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID UNIQUE NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -212,9 +188,7 @@ CREATE TRIGGER subscriptions_updated_at
   BEFORE UPDATE ON public.subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
--- ════════════════════════════════════════════════════════════════════
 -- ACTIVITY LOGS
--- ════════════════════════════════════════════════════════════════════
 CREATE TABLE IF NOT EXISTS public.activity_logs (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID REFERENCES public.users(id) ON DELETE SET NULL,
@@ -228,9 +202,7 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 CREATE INDEX IF NOT EXISTS idx_logs_user    ON public.activity_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_logs_created ON public.activity_logs(created_at DESC);
 
--- ════════════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY
--- ════════════════════════════════════════════════════════════════════
 
 -- Users
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
@@ -287,9 +259,7 @@ ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "logs_read_own" ON public.activity_logs;
 CREATE POLICY "logs_read_own" ON public.activity_logs FOR SELECT USING (auth.uid() = user_id);
 
--- ════════════════════════════════════════════════════════════════════
 -- FUNCTIONS
--- ════════════════════════════════════════════════════════════════════
 
 -- Atomic view counter increment
 CREATE OR REPLACE FUNCTION increment_site_views(site_id UUID)
@@ -304,9 +274,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 GRANT EXECUTE ON FUNCTION increment_site_views(UUID) TO anon;
 GRANT EXECUTE ON FUNCTION increment_site_views(UUID) TO authenticated;
 
--- ════════════════════════════════════════════════════════════════════
 -- PERFORMANCE INDEXES
--- ════════════════════════════════════════════════════════════════════
 
 CREATE INDEX IF NOT EXISTS idx_projects_user_status
   ON public.projects(user_id, status)
@@ -318,9 +286,7 @@ CREATE INDEX IF NOT EXISTS idx_sites_user_status
 CREATE INDEX IF NOT EXISTS idx_analytics_site_type_time
   ON public.analytics_events(site_id, event_type, created_at DESC);
 
--- ════════════════════════════════════════════════════════════════════
 -- STORAGE: RLS POLICIES
--- ════════════════════════════════════════════════════════════════════
 
 DO $$
 DECLARE
@@ -330,6 +296,28 @@ DECLARE
     'published_assets_update_own', 'published_assets_delete_own',
     'thumbnails_select_public', 'thumbnails_insert_own',
     'thumbnails_update_own', 'thumbnails_delete_own'
+  ];
+-- STORAGE: BUCKETS SETUP
+INSERT INTO storage.buckets (id, name, public)
+VALUES
+  ('uploads', 'uploads', false),
+  ('published-assets', 'published-assets', true),
+  ('thumbnails', 'thumbnails', true),
+  ('promotional-videos', 'promotional-videos', true)
+ON CONFLICT (id) DO UPDATE SET public = EXCLUDED.public;
+
+-- STORAGE: RLS POLICIES
+DO $$
+DECLARE
+  policies TEXT[] := ARRAY[
+    'uploads_insert_own', 'uploads_select_own', 'uploads_update_own', 'uploads_delete_own',
+    'published_assets_select_public', 'published_assets_insert_own',
+    'published_assets_update_own', 'published_assets_delete_own',
+    'thumbnails_select_public', 'thumbnails_insert_own',
+    'thumbnails_update_own', 'thumbnails_delete_own',
+    'Public access for promotional videos storage', 'Admin write access for promotional videos storage',
+    'Admin update access for promotional videos storage', 'Admin delete access for promotional videos storage',
+    'Permissive promotional videos storage policy'
   ];
   p TEXT;
 BEGIN
@@ -381,9 +369,61 @@ CREATE POLICY "thumbnails_update_own" ON storage.objects FOR UPDATE TO authentic
 CREATE POLICY "thumbnails_delete_own" ON storage.objects FOR DELETE TO authenticated
   USING (bucket_id = 'thumbnails' AND (storage.foldername(name))[1] = auth.uid()::text);
 
--- ════════════════════════════════════════════════════════════════════
+-- promotional-videos (public bucket)
+CREATE POLICY "Public access for promotional videos storage" ON storage.objects FOR SELECT TO public
+  USING (bucket_id = 'promotional-videos');
+
+CREATE POLICY "Admin write access for promotional videos storage" ON storage.objects FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'promotional-videos' AND (
+      auth.role() = 'service_role' OR
+      EXISTS (
+        SELECT 1 FROM public.users
+        WHERE public.users.id = auth.uid()
+        AND public.users.role IN ('admin', 'superadmin')
+      )
+    )
+  );
+
+-- DEPLOYMENTS (Publish History & Rollbacks)
+CREATE TABLE IF NOT EXISTS public.deployments (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  site_id       UUID NOT NULL REFERENCES public.websites(id) ON DELETE CASCADE,
+  user_id       UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  version_num   INTEGER NOT NULL DEFAULT 1,
+  html_url      TEXT NOT NULL,
+  title         TEXT NOT NULL,
+  snapshot_json JSONB DEFAULT '{}'::JSONB,
+  created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_deployments_site ON public.deployments(site_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_deployments_user ON public.deployments(user_id);
+ALTER TABLE public.deployments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "deployments_select_owner" ON public.deployments;
+DROP POLICY IF EXISTS "deployments_insert_owner" ON public.deployments;
+CREATE POLICY "deployments_select_owner" ON public.deployments FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "deployments_insert_owner" ON public.deployments FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- USER QUOTAS
+CREATE TABLE IF NOT EXISTS public.user_quotas (
+  user_id           UUID PRIMARY KEY REFERENCES public.users(id) ON DELETE CASCADE,
+  plan              TEXT DEFAULT 'free' NOT NULL CHECK (plan IN ('free', 'pro', 'enterprise')),
+  websites_limit    INTEGER DEFAULT 3 NOT NULL,
+  ai_gen_limit      INTEGER DEFAULT 100 NOT NULL,
+  ai_gen_count      INTEGER DEFAULT 0 NOT NULL,
+  storage_bytes_max BIGINT DEFAULT 52428800 NOT NULL,
+  updated_at        TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.user_quotas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "quotas_select_owner" ON public.user_quotas;
+DROP POLICY IF EXISTS "quotas_upsert_owner" ON public.user_quotas;
+CREATE POLICY "quotas_select_owner" ON public.user_quotas FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "quotas_upsert_owner" ON public.user_quotas FOR ALL USING (auth.uid() = user_id);
+
 -- BACKFILL: Create public.users rows for any existing auth.users
--- ════════════════════════════════════════════════════════════════════
 INSERT INTO public.users (id, email, name, avatar_url)
 SELECT
   au.id,

@@ -12,6 +12,8 @@ import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth.store";
 
+import { getPendingPublish } from "@/lib/pending-publish";
+
 const signupSearchSchema = z.object({
   redirect: z.string().optional(),
 });
@@ -22,6 +24,10 @@ export const Route = createFileRoute("/signup")({
     if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
     if (!isLoading && isAuthenticated) {
+      const pending = getPendingPublish();
+      if (pending) {
+        throw redirect({ to: "/generate", search: { autoPublish: "true" } });
+      }
       throw redirect({ to: "/dashboard" });
     }
   },
@@ -48,13 +54,18 @@ function SignupPage() {
   const [busy, setBusy] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
 
-  const destination = search.redirect ?? "/dashboard";
+  const pending = getPendingPublish();
+  const destination = search.redirect ?? (pending ? "/generate?autoPublish=true" : "/dashboard");
 
   const handle = async (fn: () => Promise<void>) => {
     setBusy(true);
     try {
       await fn();
-      void navigate({ to: destination as "/" });
+      if (destination.includes("?")) {
+        window.location.href = destination;
+      } else {
+        void navigate({ to: destination as "/" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
@@ -62,7 +73,15 @@ function SignupPage() {
     }
   };
 
-  const handleOAuth = (provider: "google" | "github") => handle(() => signInWithOAuth(provider));
+  const handleOAuth = (provider: "google" | "github") => {
+    setBusy(true);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const targetRedirect = `${origin}/auth/callback?next=${encodeURIComponent(destination)}`;
+    signInWithOAuth(provider, targetRedirect).catch((err) => {
+      toast.error(err instanceof Error ? err.message : "OAuth failed");
+      setBusy(false);
+    });
+  };
 
   const handleEmailSignUp = async (e: FormEvent) => {
     e.preventDefault();

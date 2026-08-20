@@ -12,6 +12,8 @@ import { Logo } from "@/components/ui/Logo";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth.store";
 
+import { getPendingPublish } from "@/lib/pending-publish";
+
 const loginSearchSchema = z.object({
   redirect: z.string().optional(),
 });
@@ -22,6 +24,10 @@ export const Route = createFileRoute("/login")({
     if (typeof window === "undefined") return;
     const { isAuthenticated, isLoading } = useAuthStore.getState();
     if (!isLoading && isAuthenticated) {
+      const pending = getPendingPublish();
+      if (pending) {
+        throw redirect({ to: "/generate", search: { autoPublish: "true" } });
+      }
       throw redirect({ to: "/dashboard" });
     }
   },
@@ -48,7 +54,8 @@ function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [magicSent, setMagicSent] = useState(false);
 
-  const destination = search.redirect ?? "/dashboard";
+  const pending = getPendingPublish();
+  const destination = search.redirect ?? (pending ? "/generate?autoPublish=true" : "/dashboard");
 
   const handle = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -56,7 +63,11 @@ function LoginPage() {
       await fn();
       // fn() resolved with authenticated store state — safe to navigate
       console.log("[LoveCraft Auth] Login: navigating to", destination);
-      void navigate({ to: destination as "/" });
+      if (destination.includes("?")) {
+        window.location.href = destination;
+      } else {
+        void navigate({ to: destination as "/" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
       setBusy(false); // only reset on error; success stays busy until navigation
@@ -65,10 +76,10 @@ function LoginPage() {
 
   const handleOAuth = (provider: "google" | "github") => {
     console.log("[LoveCraft Auth] OAuth button clicked:", provider);
-    // signInWithOAuth redirects the browser to the provider.
-    // The page stays busy — user navigates away. No navigate() needed here.
     setBusy(true);
-    signInWithOAuth(provider).catch((err) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const targetRedirect = `${origin}/auth/callback?next=${encodeURIComponent(destination)}`;
+    signInWithOAuth(provider, targetRedirect).catch((err) => {
       toast.error(err instanceof Error ? err.message : "OAuth failed");
       setBusy(false);
     });

@@ -29,6 +29,7 @@ const PHASE_LABELS: Record<string, string> = {
   "done": "Your love story is live! 💖",
 };
 
+import { useAuthStore } from "@/store/auth.store";
 import {
   savePendingPublish,
   getPendingPublish,
@@ -75,7 +76,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     [input],
   );
 
-  // Trigger publish when modal opens
+  // Trigger publish when modal opens or user authenticates
   useEffect(() => {
     if (!isOpen) {
       // Reset state when modal closes
@@ -85,21 +86,29 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       setError(null);
       return;
     }
-    // Modal just opened
-    if (!isAuthenticated || !user) {
+
+    const currentUser = useAuthStore.getState().user ?? user;
+
+    // Modal just opened or state updated
+    if (!isAuthenticated || !currentUser) {
       // Save pending publish input before triggering auth modal / OAuth
       if (input && input.photos && input.photos.length > 0) {
         savePendingPublish(input);
       }
       setStage("auth");
     } else {
-      void startPublish(user.id);
+      if (stage === "idle" || stage === "auth") {
+        void startPublish(currentUser.id);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, isAuthenticated, user]);
 
   const handleAuthSuccess = () => {
-    if (user) void startPublish(user.id);
+    const currentUser = useAuthStore.getState().user ?? user;
+    if (currentUser) {
+      void startPublish(currentUser.id);
+    }
   };
 
   const handleCreateAnother = () => {

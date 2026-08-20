@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
-// /sites/$siteId — Public site viewer
-// Renders a published love story site in a sandboxed iframe.
-// Dynamic SSR head: title, description, og:image, canonical,
-// and robots are resolved from the actual site record.
-// ─────────────────────────────────────────────────────────────────
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +10,6 @@ import type { PublishedSite } from "@/types";
 const SITE_BASE = "https://lovecraft.ai";
 const DEFAULT_OG = `${SITE_BASE}/branding/og-default.png`;
 
-// ── Head loader ────────────────────────────────────────────────────
 // TanStack Start supports a loaderDeps + loader pattern for SSR.
 // We keep the head() simple and SSR-friendly by reading loaderData.
 export const Route = createFileRoute("/sites/$siteId")({
@@ -127,7 +120,6 @@ function SiteViewerPage() {
     };
   }, [siteId]);
 
-  // ── Loading screen ──────────────────────────────────────────────
   if (loading) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center">
@@ -148,7 +140,6 @@ function SiteViewerPage() {
     );
   }
 
-  // ── 404 ────────────────────────────────────────────────────────
   if (notFound || !html) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center px-4">
@@ -169,7 +160,6 @@ function SiteViewerPage() {
     );
   }
 
-  // ── Site viewer ─────────────────────────────────────────────────
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
       {/* Full-screen iframe with the generated HTML */}

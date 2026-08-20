@@ -1,4 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
 // Supabase Client — Singleton for frontend use
 //
 // Flow: PKCE (Proof Key for Code Exchange)
@@ -17,7 +16,6 @@
 //   persistSession, autoRefreshToken are disabled on the server.
 //   detectSessionInUrl is false — not needed with PKCE (the code exchange
 //   happens explicitly in the callback route), and causes SSR issues.
-// ─────────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;

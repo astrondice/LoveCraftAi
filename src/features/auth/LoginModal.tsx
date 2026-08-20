@@ -39,8 +39,11 @@ export function LoginModal({
     setBusy(true);
     try {
       await fn();
-      onSuccess?.();
-      onClose();
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        onClose();
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {

@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────
-// Publish Service — Orchestrates the entire publish flow
-// Uses exact public.websites schema:
-// (id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html, created_at, updated_at)
-// ─────────────────────────────────────────────────────────────────
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { storageService } from "./storage.service";
 import { GenerationEngine } from "@/services/generation/engine";
@@ -21,8 +16,6 @@ export interface Deployment {
 }
 
 const isBrowser = typeof window !== "undefined";
-
-// ── ID generators ─────────────────────────────────────────────────
 
 function generateUUID(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -49,8 +42,6 @@ function generateSlug(name1: string, name2: string): string {
   return `${base || "love-story"}-${shortId()}`;
 }
 
-// ── Service ──────────────────────────────────────────────────────
-
 export const publishService = {
   /**
    * Full publish flow.
@@ -66,7 +57,6 @@ export const publishService = {
 
     console.log("[Publish] Starting publish flow", { siteId, projectId, userId });
 
-    // ── Phase 1: Upload photos ──────────────────────────────────
     onProgress({ phase: "uploading-assets", percent: 5, message: "Uploading photos…" });
 
     const photoUrls: string[] = [];
@@ -81,7 +71,6 @@ export const publishService = {
       });
     }
 
-    // ── Phase 2: Upload music ───────────────────────────────────
     let musicUrl: string | null = null;
     if (input.music) {
       onProgress({ phase: "uploading-assets", percent: 38, message: "Uploading soundtrack…" });
@@ -94,7 +83,6 @@ export const publishService = {
       );
     }
 
-    // ── Phase 3: Upload video ───────────────────────────────────
     let videoUrl: string | null = null;
     if (input.video) {
       onProgress({ phase: "uploading-assets", percent: 45, message: "Uploading video…" });
@@ -107,7 +95,6 @@ export const publishService = {
       );
     }
 
-    // ── Phase 4: Build HTML with permanent URLs ─────────────────
     onProgress({ phase: "building-html", percent: 55, message: "Crafting your love story…" });
 
     const engine = new GenerationEngine();
@@ -129,12 +116,10 @@ export const publishService = {
 
     const html = renderBlueprint(blueprint);
 
-    // ── Phase 5: Upload HTML ────────────────────────────────────
     onProgress({ phase: "uploading-html", percent: 65, message: "Publishing to the cloud…" });
     const htmlUrl = await storageService.uploadHtml(userId, siteId, html);
     console.log("[Publish] HTML uploaded →", htmlUrl);
 
-    // ── Phase 6: Save database record ──────────────────────────
     onProgress({ phase: "saving-record", percent: 80, message: "Saving your site…" });
 
     const slug = generateSlug(input.name1, input.name2);
@@ -302,9 +287,13 @@ export const publishService = {
   /** Get all websites for the current user */
   async getUserSites(): Promise<Website[]> {
     if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data, error } = await supabase
         .from("websites")
         .select("*")
+        .eq("user_id", user.id)
         .eq("status", "active")
         .order("created_at", { ascending: false });
 
@@ -326,10 +315,15 @@ export const publishService = {
   /** Move a website record to trash (30-day retention) */
   async deleteSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      let query = supabase
         .from("websites")
         .update({ status: "trash", updated_at: new Date().toISOString() })
         .eq("id", siteId);
+      if (user) {
+        query = query.eq("user_id", user.id);
+      }
+      const { error } = await query;
 
       if (error) {
         console.error("[Publish] deleteSite error:", error.message);
@@ -352,9 +346,13 @@ export const publishService = {
   /** Get all trashed websites */
   async getTrashedSites(): Promise<Website[]> {
     if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
       const { data } = await supabase
         .from("websites")
         .select("*")
+        .eq("user_id", user.id)
         .eq("status", "trash")
         .order("updated_at", { ascending: false });
       return (data ?? []) as Website[];
@@ -371,10 +369,15 @@ export const publishService = {
   /** Restore site from trash */
   async restoreSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      let query = supabase
         .from("websites")
         .update({ status: "active", updated_at: new Date().toISOString() })
         .eq("id", siteId);
+      if (user) {
+        query = query.eq("user_id", user.id);
+      }
+      const { error } = await query;
 
       if (error) throw new Error(`Failed to restore website: ${error.message}`);
       return;
@@ -394,7 +397,12 @@ export const publishService = {
   /** Permanently delete site from storage & DB */
   async permanentDeleteSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from("websites").delete().eq("id", siteId);
+      const { data: { user } } = await supabase.auth.getUser();
+      let query = supabase.from("websites").delete().eq("id", siteId);
+      if (user) {
+        query = query.eq("user_id", user.id);
+      }
+      const { error } = await query;
       if (error) throw new Error(`Failed to permanently delete website: ${error.message}`);
       return;
     }
@@ -426,15 +434,17 @@ export const publishService = {
   /** Rollback site to a previous deployment */
   async rollbackDeployment(siteId: string, deploymentId: string): Promise<void> {
     if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
       const { data: dep } = await supabase
         .from("deployments")
         .select("*")
         .eq("id", deploymentId)
+        .eq("site_id", siteId)
         .single();
 
       if (!dep) throw new Error("Deployment snapshot not found");
 
-      const { error } = await supabase
+      let query = supabase
         .from("websites")
         .update({
           title: dep.title,
@@ -444,6 +454,11 @@ export const publishService = {
         })
         .eq("id", siteId);
 
+      if (user) {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { error } = await query;
       if (error) throw new Error(`Rollback failed: ${error.message}`);
     }
   },
@@ -451,11 +466,17 @@ export const publishService = {
   /** Rename a site title */
   async renameSite(siteId: string, newTitle: string): Promise<void> {
     if (isSupabaseConfigured) {
-      const { error } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      let query = supabase
         .from("websites")
         .update({ title: newTitle, updated_at: new Date().toISOString() })
         .eq("id", siteId);
 
+      if (user) {
+        query = query.eq("user_id", user.id);
+      }
+
+      const { error } = await query;
       if (error) throw new Error(`Failed to rename website: ${error.message}`);
       return;
     }
@@ -483,9 +504,12 @@ export const publishService = {
     const newSlug = generateSlug(existing.site.title, "copy");
 
     if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id || existing.site.user_id;
+
       const payload = {
         id: newSiteId,
-        user_id: existing.site.user_id,
+        user_id: currentUserId,
         title: newTitle,
         slug: newSlug,
         website_type: existing.site.website_type || "cosmic",
