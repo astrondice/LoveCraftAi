@@ -3,7 +3,8 @@
 // Opens from generate.tsx Step 4 when user clicks "Publish Live ✨"
 // ─────────────────────────────────────────────────────────────────
 import { AnimatePresence, motion } from "framer-motion";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+
 import { X, Sparkles, AlertCircle } from "lucide-react";
 import { LoginModal } from "@/features/auth/LoginModal";
 import { PublishSuccess } from "./PublishSuccess";
@@ -47,8 +48,15 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
   const [result, setResult] = useState<PublishResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isPublishingRef = useRef(false);
+
   const startPublish = useCallback(
     async (userId: string) => {
+      if (isPublishingRef.current) {
+        console.warn("[Publish] startPublish already in progress — skipping duplicate trigger");
+        return;
+      }
+      isPublishingRef.current = true;
       setStage("publishing");
       setError(null);
 
@@ -59,18 +67,25 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       );
       const activeInput: PublishInput = hasDirectContent ? input : (pendingInput ?? input);
 
+      console.log("[Publish] PUBLISH_CLICK / START", { userId });
+
       try {
         const res = await publishService.publish(
           { ...activeInput, projectId: undefined },
           userId,
           (p) => setProgress(p),
         );
-        clearPendingPublish();
+        void clearPendingPublish();
         setResult(res);
         setStage("success");
+        console.log("[Publish] PUBLISH_SUCCESS", { url: res.url });
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Publishing failed");
+        const msg = err instanceof Error ? err.message : "Publishing failed";
+        console.error("[Publish] PUBLISH_FAILED:", msg);
+        setError(msg);
         setStage("error");
+      } finally {
+        isPublishingRef.current = false;
       }
     },
     [input],
@@ -80,6 +95,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
   useEffect(() => {
     if (!isOpen) {
       // Reset state when modal closes
+      isPublishingRef.current = false;
       setStage("idle");
       setProgress({ phase: "idle", percent: 0, message: "Starting…" });
       setResult(null);
@@ -94,9 +110,10 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
 
     // Modal just opened or state updated
     if (!isAuthenticated || !currentUser) {
+      console.log("[Publish] AUTH_REQUIRED — opening auth gate");
       // Save pending publish input before triggering auth modal / OAuth
       if (input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0))) {
-        savePendingPublish(input);
+        void savePendingPublish(input);
       }
       setStage("auth");
     } else {
@@ -113,6 +130,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       void startPublish(currentUser.id);
     }
   };
+
 
 
   const handleCreateAnother = () => {

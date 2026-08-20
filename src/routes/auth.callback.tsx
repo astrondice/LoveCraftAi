@@ -95,29 +95,30 @@ function AuthCallbackPage() {
           throw new Error("No session returned after authentication.");
         }
 
-        // 3. Update the auth store directly (avoid calling initialize() again
-        //    which would register a duplicate onAuthStateChange listener).
-        //    The onAuthStateChange listener already registered in __root.tsx
-        //    will fire automatically — but we also push directly to be safe.
+        // 3. Update the auth store directly
         const { authService } = await import("@/services/auth.service");
         const userProfile = await authService.getCurrentUser();
-        console.log("[LoveCraft Auth] User profile loaded:", userProfile?.email);
+        console.log("[LoveCraft Auth] SESSION_RESTORED:", userProfile?.email);
         setUser(userProfile);
 
         setStatus("success");
-        const { getPendingPublish } = await import("@/lib/pending-publish");
-        const pending = getPendingPublish();
-        const next = search.next ?? (pending ? "/generate?autoPublish=true" : "/dashboard");
-        console.log("[LoveCraft Auth] Redirecting to:", next);
+        const { getPendingPublishAction, getPendingPublish } = await import("@/lib/pending-publish");
+        const pendingAction = await getPendingPublishAction();
+        const pendingSync = getPendingPublish();
+        const hasPending = Boolean(pendingAction || pendingSync);
+
+        const targetNext = pendingAction?.returnTo ?? search.next ?? (hasPending ? "/generate?autoPublish=true" : "/dashboard");
+        console.log("[LoveCraft Auth] AUTH_CALLBACK completed, next route:", targetNext);
 
         // Small delay so the user sees the success heart animation
         setTimeout(() => {
-          if (next.includes("?")) {
-            window.location.href = next;
+          if (targetNext.includes("?")) {
+            window.location.href = targetNext;
           } else {
-            void navigate({ to: next as "/" });
+            void navigate({ to: targetNext as "/" });
           }
-        }, 900);
+        }, 800);
+
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Authentication failed";
         console.error("[LoveCraft Auth] Callback error:", msg);

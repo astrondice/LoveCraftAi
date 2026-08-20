@@ -14,7 +14,8 @@ import { renderBlueprint } from "@/lib/renderer/renderer";
 import { AutoSaveIndicator } from "@/components/ui/AutoSaveIndicator";
 import { draftRecovery } from "@/lib/draft-recovery";
 import { useAuth } from "@/hooks/use-auth";
-import { getPendingPublish } from "@/lib/pending-publish";
+import { getPendingPublish, getPendingPublishAction } from "@/lib/pending-publish";
+
 import { TemplateCard } from "@/features/templates/TemplateCard";
 import { TEMPLATE_LIST, TEMPLATES_DATA, type TemplateSpec } from "@/lib/templates.data";
 import { CATEGORY_LIST, getCategoryBySlug } from "@/lib/categories.data";
@@ -112,40 +113,52 @@ function GeneratePage() {
   // Auto-resume publish after OAuth redirect
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const autoPublish = params.get("autoPublish") === "true";
-    const pending = getPendingPublish();
 
-    if (!isLoading && (autoPublish || pending) && isAuthenticated && user) {
-      console.log("[LoveCraft GeneratePage] Auto-restoring pending publish state");
-      if (pending) {
-        if (pending.name1) s.setField("name1", pending.name1);
-        if (pending.name2) s.setField("name2", pending.name2);
-        if (pending.date) s.setField("date", pending.date);
-        if (pending.duration) s.setField("duration", pending.duration);
-        if (pending.memory) s.setField("memory", pending.memory);
-        if (pending.message) s.setField("message", pending.message);
-        if (pending.themeId) s.setTheme(pending.themeId);
-        if (pending.photos && pending.photos.length > 0 && s.photos.length === 0) {
-          s.addPhotos(pending.photos);
+    async function restorePending() {
+      const params = new URLSearchParams(window.location.search);
+      const autoPublish = params.get("autoPublish") === "true";
+      const pendingAction = await getPendingPublishAction();
+      const pending = pendingAction?.input ?? getPendingPublish();
+
+      if (!isLoading && (autoPublish || pending) && isAuthenticated && user) {
+        console.log("[Publish] PENDING_PUBLISH_RESTORED", {
+          hasPendingInput: !!pending,
+          autoPublish,
+        });
+
+        if (pending) {
+          if (pending.name1) s.setField("name1", pending.name1);
+          if (pending.name2) s.setField("name2", pending.name2);
+          if (pending.date) s.setField("date", pending.date);
+          if (pending.duration) s.setField("duration", pending.duration);
+          if (pending.memory) s.setField("memory", pending.memory);
+          if (pending.message) s.setField("message", pending.message);
+          if (pending.themeId) s.setTheme(pending.themeId);
+          if (pending.photos && pending.photos.length > 0 && s.photos.length === 0) {
+            s.addPhotos(pending.photos);
+          }
+          if (pending.music && !s.music) s.setMusic(pending.music);
+          if (pending.video && !s.video) s.setVideo(pending.video);
         }
-        if (pending.music && !s.music) s.setMusic(pending.music);
-        if (pending.video && !s.video) s.setVideo(pending.video);
-      }
-      s.setStep(3); // Jump to Step 4 ("The Moment")
+        s.setStep(3); // Jump to Step 4 ("The Moment")
 
-      if (autoPublish) {
-        // Strip autoPublish from URL so refresh doesn't auto-open modal again
-        const url = new URL(window.location.href);
-        url.searchParams.delete("autoPublish");
-        window.history.replaceState({}, "", url.toString());
+        if (autoPublish) {
+          console.log("[Publish] PUBLISH_RESUMED — opening publish modal");
+          // Strip autoPublish from URL so refresh doesn't auto-open modal again
+          const url = new URL(window.location.href);
+          url.searchParams.delete("autoPublish");
+          window.history.replaceState({}, "", url.toString());
 
-        // Auto-open publish modal
-        setPublishOpen(true);
+          // Auto-open publish modal
+          setPublishOpen(true);
+        }
       }
     }
+
+    void restorePending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isAuthenticated, user]);
+
 
 
   useEffect(() => {
