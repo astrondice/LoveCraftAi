@@ -49,6 +49,7 @@ import {
   Share2,
   Globe,
   LayoutDashboard,
+  Eye,
 } from "lucide-react";
 
 export const Route = createFileRoute("/generate")({
@@ -817,9 +818,38 @@ function GenerateStep() {
   const [phase, setPhase] = useState("");
   const [downloaded, setDownloaded] = useState(false);
   const [confetti, setConfetti] = useState<number[]>([]);
-  // New: publish modal state
+  // Publish & Preview modal states
   const [publishOpen, setPublishOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const { user, isAuthenticated } = useAuth();
+
+  const handleOpenPreview = async () => {
+    setIsPreviewLoading(true);
+    try {
+      const engine = new GenerationEngine();
+      const blueprint = await engine.generateBlueprint({
+        name1: s.name1,
+        name2: s.name2,
+        message: s.message,
+        date: s.date,
+        duration: s.duration,
+        memory: s.memory,
+        photos: s.photos,
+        music: s.music,
+        video: s.video,
+        themeId: s.theme,
+      });
+      const html = renderBlueprint(blueprint);
+      setPreviewHtml(html);
+      setPreviewOpen(true);
+    } catch (err) {
+      toast.error("Failed to generate preview");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
 
   // Auto-open publish modal when returning from OAuth with pending publish payload
   useEffect(() => {
@@ -1007,19 +1037,47 @@ function GenerateStep() {
         Your narrative is woven. Review below before we bring this memory to life.
       </p>
 
-      <GlassCard className="mt-12 !p-0 overflow-hidden text-left">
+      <GlassCard className="mt-12 !p-0 overflow-hidden text-left border border-ivory/10 shadow-2xl relative">
         <div className="grid md:grid-cols-2">
+          {/* Enhanced Creative Studio preview card */}
           <div
-            className="min-h-[320px] p-8 flex flex-col justify-between"
-            style={{ background: t.gradient }}
+            className="min-h-[340px] p-8 flex flex-col justify-between relative overflow-hidden group"
+            style={{
+              background: `linear-gradient(135deg, ${t.bg || '#050505'}, ${t.c2 || '#1a0535'} 70%, ${t.c1 || '#c060a0'})`,
+            }}
           >
-            <span className="label-caps text-ivory/90">Creative Studio</span>
-            <div>
-              <p className="font-display text-4xl text-ivory">{t.name}</p>
-              <p className="label-caps text-ivory/90 mt-1 text-[10px]">{t.vibe}</p>
+            {/* Ambient glowing radial overlay */}
+            <div
+              className="absolute -top-24 -left-24 w-64 h-64 rounded-full blur-3xl opacity-40 pointer-events-none"
+              style={{ background: t.c1 || "#c9a96e" }}
+            />
+            <div
+              className="absolute -bottom-24 -right-24 w-64 h-64 rounded-full blur-3xl opacity-30 pointer-events-none"
+              style={{ background: t.c2 || "#7030d0" }}
+            />
+
+            <div className="flex items-center justify-between relative z-10">
+              <span className="label-caps text-ivory/90 tracking-widest text-[11px] bg-charcoal/40 backdrop-blur px-3 py-1 rounded-full border border-ivory/10">
+                Creative Studio
+              </span>
+              <button
+                onClick={handleOpenPreview}
+                disabled={isPreviewLoading}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/20 hover:bg-gold/30 border border-gold/40 text-gold text-xs font-medium transition-all shadow-lg backdrop-blur"
+              >
+                <Eye size={13} /> {isPreviewLoading ? "Loading…" : "Preview Story"}
+              </button>
+            </div>
+
+            <div className="relative z-10 mt-12">
+              <p className="font-display text-4xl text-ivory drop-shadow-md">{t.name}</p>
+              <p className="label-caps text-gold/90 mt-1.5 text-[11px] font-mono tracking-wider">
+                {t.vibe}
+              </p>
             </div>
           </div>
-          <div className="p-8 space-y-2">
+
+          <div className="p-8 space-y-2 bg-charcoal/40 backdrop-blur">
             <SummaryRow label="The Protagonists" value={`${s.name1 || "—"} & ${s.name2 || "—"}`} />
             <SummaryRow label="The Epoch" value={s.date || "Undated"} />
             <SummaryRow label="Atmosphere" value={t.atmosphere} multiline />
@@ -1034,13 +1092,13 @@ function GenerateStep() {
       <div className="mt-10">
         {!s.isGenerating ? (
           <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-2xl mx-auto">
-            {/* ── Download ZIP (existing, unchanged) ── */}
+            {/* ── Download ZIP ── */}
             <button onClick={generate} className="flex-1">
               <MagneticButton variant="primary" className="w-full text-base py-5">
                 <Download size={16} /> Download ZIP
               </MagneticButton>
             </button>
-            {/* ── Publish Live (new) ── */}
+            {/* ── Publish Live ── */}
             <button onClick={() => setPublishOpen(true)} className="flex-1">
               <MagneticButton variant="gold" className="w-full text-base py-5">
                 <Globe size={16} /> Publish Live ✨
@@ -1069,6 +1127,40 @@ function GenerateStep() {
           </div>
         )}
       </div>
+
+      {/* Live Preview Modal */}
+      <AnimatePresence>
+        {previewOpen && previewHtml && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-charcoal/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-5xl h-[85vh] bg-charcoal border border-ivory/20 rounded-3xl overflow-hidden flex flex-col shadow-2xl relative"
+            >
+              <div className="p-4 border-b border-ivory/10 flex items-center justify-between bg-charcoal/80">
+                <div className="flex items-center gap-2">
+                  <Eye className="text-gold" size={18} />
+                  <span className="font-display text-lg text-ivory">
+                    Live Preview — {s.name1 || "Story"} & {s.name2 || "Story"}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setPreviewOpen(false)}
+                  className="w-8 h-8 rounded-full grid place-items-center text-ivory/50 hover:text-ivory hover:bg-ivory/10 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <iframe
+                title="Story Preview"
+                srcDoc={previewHtml}
+                className="w-full h-full border-0 bg-black"
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Publish Modal */}
       <Suspense fallback={null}>

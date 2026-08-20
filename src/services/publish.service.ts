@@ -265,13 +265,33 @@ export const publishService = {
         og_image_url: (data as Website).preview_image || (data as Website).og_image_url,
       };
 
-      try {
-        const res = await fetch(website.published_html || website.html_url!);
-        const html = await res.text();
-        return { site: website, html };
-      } catch {
-        return null;
+      const rawUrl = website.published_html || website.html_url;
+
+      if (rawUrl) {
+        try {
+          const res = await fetch(rawUrl);
+          if (res.ok) {
+            const html = await res.text();
+            if (html && html.trim().length > 0) {
+              return { site: website, html };
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("[Publish] Fetching published HTML failed, falling back to blueprint render:", fetchErr);
+        }
       }
+
+      // Fallback: render HTML directly from saved blueprint_json
+      if (website.blueprint_json && Object.keys(website.blueprint_json).length > 0) {
+        try {
+          const html = renderBlueprint(website.blueprint_json as any);
+          return { site: website, html };
+        } catch (renderErr) {
+          console.error("[Publish] Blueprint fallback render failed:", renderErr);
+        }
+      }
+
+      return null;
     }
 
     const html = isBrowser ? sessionStorage.getItem(`lovecraft-site-${siteId}`) : null;

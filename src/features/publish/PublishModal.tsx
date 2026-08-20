@@ -54,10 +54,10 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
 
       // Resolve active publish input (fallback to pending storage if modal input is blank)
       const pendingInput = getPendingPublish();
-      const activeInput: PublishInput =
-        input && input.photos && input.photos.length > 0
-          ? input
-          : pendingInput ?? input;
+      const hasDirectContent = Boolean(
+        input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0)),
+      );
+      const activeInput: PublishInput = hasDirectContent ? input : (pendingInput ?? input);
 
       try {
         const res = await publishService.publish(
@@ -92,7 +92,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
     // Modal just opened or state updated
     if (!isAuthenticated || !currentUser) {
       // Save pending publish input before triggering auth modal / OAuth
-      if (input && input.photos && input.photos.length > 0) {
+      if (input && (input.name1 || input.name2 || input.message || (input.photos && input.photos.length > 0))) {
         savePendingPublish(input);
       }
       setStage("auth");
