@@ -4,6 +4,9 @@ import { GenerationEngine } from "@/services/generation/engine";
 import { renderBlueprint } from "@/lib/renderer/renderer";
 import type { PublishInput, PublishResult, PublishProgress, Website } from "@/types";
 
+// ─────────────────────────────────────────────────────────────────
+// Deployment history record (public.deployments table)
+// ─────────────────────────────────────────────────────────────────
 export interface Deployment {
   id: string;
   site_id: string;
@@ -30,7 +33,9 @@ function generateUUID(): string {
 
 function shortId(): string {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return Array.from({ length: 6 }, () =>
+    chars[Math.floor(Math.random() * chars.length)],
+  ).join("");
 }
 
 function generateSlug(name1: string, name2: string): string {
@@ -42,60 +47,133 @@ function generateSlug(name1: string, name2: string): string {
   return `${base || "love-story"}-${shortId()}`;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Canonical public URL — uses window.location.origin in browser
+// so it always matches the actual deployed host.
+// ─────────────────────────────────────────────────────────────────
+function canonicalUrl(siteId: string): string {
+  const origin = isBrowser
+    ? window.location.origin
+    : import.meta.env.VITE_APP_URL || "https://love-craft-ai.vercel.app";
+  return `${origin}/sites/${siteId}`;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Normalize raw DB row → Website object.
+//
+// ACTUAL production columns (verified 2026-08-20):
+//   id, user_id, title, slug, website_type, status,
+//   blueprint_json, preview_image, published_html,
+//   created_at, updated_at, published_at (after migration 012)
+//
+// Columns that do NOT exist in production:
+//   html_url, og_image_url, project_id, is_public,
+//   views, unique_visitors, password_hash, version_id
+// ─────────────────────────────────────────────────────────────────
+function normalizeWebsite(raw: Record<string, unknown>): Website {
+  const storageUrl = (raw.published_html as string) || "";
+  const imageUrl = (raw.preview_image as string) || null;
+  return {
+    ...(raw as unknown as Website),
+    // html_url is NOT a DB column — populate at runtime for TS consumers
+    html_url: storageUrl,
+    // og_image_url is NOT a DB column — alias for preview_image
+    og_image_url: imageUrl,
+    preview_image: imageUrl,
+    // published_html is the real DB column
+    published_html: storageUrl,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Authoritative post-publish verification.
+// Checks the DB record exists with renderable content.
+// ─────────────────────────────────────────────────────────────────
+async function verifyPublishedSite(siteId: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+
+  const { data, error } = await supabase
+    .from("websites")
+    .select("id, status, blueprint_json, published_html")
+    .eq("id", siteId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error || !data) {
+    throw new Error(
+      "Publish verification failed: website record not found or not active.",
+    );
+  }
+
+  const hasStorageUrl = Boolean(
+    (data.published_html as string | null)?.trim(),
+  );
+  const bp = data.blueprint_json as Record<string, unknown> | null;
+  const hasBlueprint = Boolean(bp && Object.keys(bp).length > 0);
+
+  if (!hasStorageUrl && !hasBlueprint) {
+    throw new Error(
+      "Publish verification failed: no published HTML and no blueprint.",
+    );
+  }
+}
+
 export const publishService = {
-  /**
-   * Full publish flow.
-   * Reports progress via the onProgress callback.
-   */
+  // ─────────────────────────────────────────────────────────────
+  // PUBLISH
+  //
+  // Insert payload uses ONLY the columns that exist in production:
+  //   id, user_id, title, slug, status,
+  //   website_type, blueprint_json, preview_image,
+  //   published_html, published_at
+  // ─────────────────────────────────────────────────────────────
   async publish(
     input: PublishInput,
     userId: string,
     onProgress: (p: PublishProgress) => void,
   ): Promise<PublishResult> {
     const siteId = generateUUID();
-    const projectId = input.projectId ?? generateUUID();
 
-    console.log("[Publish] Starting publish flow", { siteId, projectId, userId });
+    console.log("[Publish] Starting publish pipeline", { siteId, userId });
 
+    // ── Step 1: Upload photos ──────────────────────────────────
     onProgress({ phase: "uploading-assets", percent: 5, message: "Uploading photos…" });
 
+    const projectId = input.projectId ?? siteId; // reuse siteId as projectId if not provided
     const photoUrls: string[] = [];
+
     for (let i = 0; i < input.photos.length; i++) {
       const photo = input.photos[i];
-      const url = await storageService.uploadPhoto(userId, projectId, photo.dataUrl, photo.name);
+      const url = await storageService.uploadPhoto(
+        userId, projectId, photo.dataUrl, photo.name,
+      );
       photoUrls.push(url);
       onProgress({
         phase: "uploading-assets",
-        percent: 5 + Math.round(((i + 1) / input.photos.length) * 30),
+        percent: 5 + Math.round(((i + 1) / input.photos.length) * 25),
         message: `Uploading photo ${i + 1} of ${input.photos.length}…`,
       });
     }
 
+    // ── Step 2: Upload audio & video ───────────────────────────
     let musicUrl: string | null = null;
     if (input.music) {
-      onProgress({ phase: "uploading-assets", percent: 38, message: "Uploading soundtrack…" });
+      onProgress({ phase: "uploading-assets", percent: 33, message: "Uploading soundtrack…" });
       musicUrl = await storageService.uploadMedia(
-        userId,
-        projectId,
-        input.music.dataUrl,
-        input.music.name,
-        "audio",
+        userId, projectId, input.music.dataUrl, input.music.name, "audio",
       );
     }
 
     let videoUrl: string | null = null;
     if (input.video) {
-      onProgress({ phase: "uploading-assets", percent: 45, message: "Uploading video…" });
+      onProgress({ phase: "uploading-assets", percent: 42, message: "Uploading video…" });
       videoUrl = await storageService.uploadMedia(
-        userId,
-        projectId,
-        input.video.dataUrl,
-        input.video.name,
-        "video",
+        userId, projectId, input.video.dataUrl, input.video.name, "video",
       );
     }
 
-    onProgress({ phase: "building-html", percent: 55, message: "Crafting your love story…" });
+    // ── Step 3: Generate blueprint ─────────────────────────────
+    onProgress({ phase: "building-html", percent: 50, message: "Crafting your love story…" });
 
     const engine = new GenerationEngine();
     const blueprint = await engine.generateBlueprint({
@@ -114,54 +192,36 @@ export const publishService = {
       video: videoUrl ? { name: input.video!.name, dataUrl: videoUrl } : input.video,
     });
 
+    // ── Step 4: Render HTML ────────────────────────────────────
     const html = renderBlueprint(blueprint);
 
-    onProgress({ phase: "uploading-html", percent: 65, message: "Publishing to the cloud…" });
-    const htmlUrl = await storageService.uploadHtml(userId, siteId, html);
-    console.log("[Publish] HTML uploaded →", htmlUrl);
+    // ── Step 5: Upload HTML to public storage bucket ───────────
+    onProgress({ phase: "uploading-html", percent: 60, message: "Publishing to the cloud…" });
+    const htmlStorageUrl = await storageService.uploadHtml(userId, siteId, html);
+    console.log("[Publish] HTML uploaded →", htmlStorageUrl);
 
-    onProgress({ phase: "saving-record", percent: 80, message: "Saving your site…" });
+    // ── Step 6: Save website record ────────────────────────────
+    onProgress({ phase: "saving-record", percent: 72, message: "Saving your story…" });
 
     const slug = generateSlug(input.name1, input.name2);
     const title = `${input.name1 || "You"} & ${input.name2 || "Them"}`;
+    const now = new Date().toISOString();
 
     let site: Website;
 
     if (isSupabaseConfigured) {
-      // Save project record if projects table exists
-      const { error: projectError } = await supabase.from("projects").upsert({
-        id: projectId,
-        user_id: userId,
-        title,
-        name1: input.name1,
-        name2: input.name2,
-        date: input.date,
-        duration: input.duration,
-        memory: input.memory,
-        message: input.message,
-        theme_id: input.themeId,
-        photo_urls: photoUrls,
-        music_url: musicUrl,
-        video_url: videoUrl,
-        status: "published",
-      });
-
-      if (projectError) {
-        console.warn("[Publish] Projects table save skipped/failed:", projectError.message);
-      }
-
-      // Payload matching exact public.websites schema:
-      // id, user_id, title, slug, website_type, status, blueprint_json, preview_image, published_html
+      // ── IMPORTANT: only columns that ACTUALLY exist in production ──
       const websitePayload = {
         id: siteId,
         user_id: userId,
         title,
         slug,
-        website_type: input.themeId || "cosmic",
         status: "active",
+        website_type: input.themeId || "cosmic",
         blueprint_json: blueprint as unknown as Record<string, unknown>,
         preview_image: photoUrls[0] || null,
-        published_html: htmlUrl,
+        published_html: htmlStorageUrl,
+        published_at: now,
       };
 
       const { data: siteData, error: siteError } = await supabase
@@ -177,32 +237,33 @@ export const publishService = {
 
       const finalRecord = siteData ?? {
         ...websitePayload,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        created_at: now,
+        updated_at: now,
       };
 
-      site = {
-        ...finalRecord,
-        html_url: finalRecord.published_html,
-        og_image_url: finalRecord.preview_image,
-      } as Website;
-
+      site = normalizeWebsite(finalRecord as Record<string, unknown>);
       console.log("[Publish] Website record created:", site.id);
 
-      // Record deployment history snapshot
-      try {
-        await supabase.from("deployments").insert({
+      // Record deployment history — non-blocking, best-effort
+      void supabase
+        .from("deployments")
+        .insert({
           site_id: site.id,
           user_id: userId,
           title: site.title,
-          html_url: htmlUrl,
+          html_url: htmlStorageUrl,
           snapshot_json: blueprint as unknown as Record<string, unknown>,
+        })
+        .then(({ error }) => {
+          if (error) {
+            console.warn(
+              "[Publish] Deployment history record failed (non-blocking):",
+              error.message,
+            );
+          }
         });
-      } catch {
-        // Non-blocking deployment record
-      }
     } else {
-      // Local storage fallback when Supabase is not configured
+      // Local fallback (no Supabase credentials)
       site = {
         id: siteId,
         user_id: userId,
@@ -212,12 +273,13 @@ export const publishService = {
         status: "active",
         blueprint_json: blueprint as unknown as Record<string, unknown>,
         preview_image: photoUrls[0] || null,
-        published_html: htmlUrl,
-        html_url: htmlUrl,
+        published_html: htmlStorageUrl,
+        html_url: htmlStorageUrl,
         og_image_url: photoUrls[0] || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
+        created_at: now,
+        updated_at: now,
+        published_at: now,
+      } as Website;
 
       if (isBrowser) {
         try {
@@ -226,29 +288,42 @@ export const publishService = {
             localStorage.getItem("lovecraft-published-sites") ?? "[]",
           ) as Website[];
           sites.unshift(site);
-          localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites.slice(0, 50)));
+          localStorage.setItem(
+            "lovecraft-published-sites",
+            JSON.stringify(sites.slice(0, 50)),
+          );
         } catch {
-          // Storage quota exceeded — not critical
+          // Storage quota exceeded
         }
       }
     }
 
-    // Use the actual origin so shared links work in both dev and production
-    // without requiring VITE_APP_URL to be configured.
-    const appUrl =
-      typeof window !== "undefined"
-        ? window.location.origin
-        : (import.meta.env.VITE_APP_URL || "https://love-craft-ai.vercel.app");
-    const url = `${appUrl}/sites/${siteId}`;
+    // ── Step 7: Authoritative verification ────────────────────────
+    onProgress({ phase: "saving-record", percent: 90, message: "Verifying your website…" });
 
+    try {
+      await verifyPublishedSite(siteId);
+    } catch (verifyErr) {
+      console.error("[Publish] Verification failed:", verifyErr);
+      throw verifyErr instanceof Error
+        ? verifyErr
+        : new Error("Published content could not be verified. Please try again.");
+    }
+
+    // ── Step 8: Return canonical URL ──────────────────────────────
+    const url = canonicalUrl(siteId);
     onProgress({ phase: "done", percent: 100, message: "Your love story is live! 💖" });
     console.log("[Publish] Complete →", url);
 
     return { site, url, slug };
   },
 
-  /** Fetch a website record for the viewer */
-  async getSite(siteId: string): Promise<{ site: Website; html: string } | null> {
+  // ─────────────────────────────────────────────────────────────
+  // GET SITE — for public viewer (works without auth)
+  // ─────────────────────────────────────────────────────────────
+  async getSite(
+    siteId: string,
+  ): Promise<{ site: Website; html: string } | null> {
     if (isSupabaseConfigured) {
       const { data, error } = await supabase
         .from("websites")
@@ -259,31 +334,26 @@ export const publishService = {
 
       if (error || !data) return null;
 
-      const website = {
-        ...(data as Website),
-        html_url: (data as Website).published_html || (data as Website).html_url,
-        og_image_url: (data as Website).preview_image || (data as Website).og_image_url,
-      };
+      const website = normalizeWebsite(data as Record<string, unknown>);
+      const storageUrl = website.published_html || website.html_url;
 
-      const rawUrl = website.published_html || website.html_url;
-
-      if (rawUrl) {
+      // Primary: fetch HTML from Supabase Storage (public bucket)
+      if (storageUrl) {
         try {
-          const res = await fetch(rawUrl);
+          const res = await fetch(storageUrl);
           if (res.ok) {
             const html = await res.text();
-            if (html && html.trim().length > 0) {
-              return { site: website, html };
-            }
+            if (html?.trim()) return { site: website, html };
           }
         } catch (fetchErr) {
-          console.warn("[Publish] Fetching published HTML failed, falling back to blueprint render:", fetchErr);
+          console.warn("[Publish] Storage fetch failed, trying blueprint:", fetchErr);
         }
       }
 
-      // Fallback: render HTML directly from saved blueprint_json
+      // Fallback: render from blueprint_json
       if (website.blueprint_json && Object.keys(website.blueprint_json).length > 0) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const html = renderBlueprint(website.blueprint_json as any);
           return { site: website, html };
         } catch (renderErr) {
@@ -294,20 +364,28 @@ export const publishService = {
       return null;
     }
 
-    const html = isBrowser ? sessionStorage.getItem(`lovecraft-site-${siteId}`) : null;
+    // Local storage fallback
+    const html = isBrowser
+      ? sessionStorage.getItem(`lovecraft-site-${siteId}`)
+      : null;
     const sites = JSON.parse(
-      isBrowser ? (localStorage.getItem("lovecraft-published-sites") ?? "[]") : "[]",
+      isBrowser
+        ? (localStorage.getItem("lovecraft-published-sites") ?? "[]")
+        : "[]",
     ) as Website[];
     const site = sites.find((s) => s.id === siteId);
-
     if (!site || !html) return null;
     return { site, html };
   },
 
-  /** Get all websites for the current user */
+  // ─────────────────────────────────────────────────────────────
+  // GET USER SITES — dashboard list
+  // ─────────────────────────────────────────────────────────────
   async getUserSites(): Promise<Website[]> {
     if (isSupabaseConfigured) {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return [];
 
       const { data, error } = await supabase
@@ -321,268 +399,310 @@ export const publishService = {
         console.error("[Publish] getUserSites error:", error.message);
         return [];
       }
-      return ((data ?? []) as Website[]).map((w) => ({
-        ...w,
-        html_url: w.published_html || w.html_url,
-        og_image_url: w.preview_image || w.og_image_url,
-      }));
+      return ((data ?? []) as Record<string, unknown>[]).map(normalizeWebsite);
     }
     return isBrowser
-      ? (JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[])
+      ? (JSON.parse(
+          localStorage.getItem("lovecraft-published-sites") ?? "[]",
+        ) as Website[])
       : [];
   },
 
-  /** Move a website record to trash (30-day retention) */
+  // ─────────────────────────────────────────────────────────────
+  // REPUBLISH — update existing site, canonical URL stays stable
+  // ─────────────────────────────────────────────────────────────
+  async republish(
+    siteId: string,
+    input: PublishInput,
+    userId: string,
+    onProgress: (p: PublishProgress) => void,
+  ): Promise<PublishResult> {
+    const projectId = input.projectId ?? siteId;
+
+    onProgress({ phase: "uploading-assets", percent: 5, message: "Uploading updated photos…" });
+
+    const photoUrls: string[] = [];
+    for (let i = 0; i < input.photos.length; i++) {
+      const url = await storageService.uploadPhoto(
+        userId, projectId, input.photos[i].dataUrl, input.photos[i].name,
+      );
+      photoUrls.push(url);
+      onProgress({
+        phase: "uploading-assets",
+        percent: 5 + Math.round(((i + 1) / input.photos.length) * 25),
+        message: `Uploading photo ${i + 1} of ${input.photos.length}…`,
+      });
+    }
+
+    let musicUrl: string | null = null;
+    if (input.music) {
+      musicUrl = await storageService.uploadMedia(
+        userId, projectId, input.music.dataUrl, input.music.name, "audio",
+      );
+    }
+
+    let videoUrl: string | null = null;
+    if (input.video) {
+      videoUrl = await storageService.uploadMedia(
+        userId, projectId, input.video.dataUrl, input.video.name, "video",
+      );
+    }
+
+    onProgress({ phase: "building-html", percent: 50, message: "Crafting your updated story…" });
+
+    const engine = new GenerationEngine();
+    const blueprint = await engine.generateBlueprint({
+      name1: input.name1, name2: input.name2, message: input.message,
+      date: input.date, duration: input.duration, memory: input.memory,
+      themeId: input.themeId,
+      photos: photoUrls.map((url, i) => ({
+        name: input.photos[i]?.name ?? `photo-${i}`, dataUrl: url,
+      })),
+      music: musicUrl ? { name: input.music!.name, dataUrl: musicUrl } : input.music,
+      video: videoUrl ? { name: input.video!.name, dataUrl: videoUrl } : input.video,
+    });
+
+    const html = renderBlueprint(blueprint);
+
+    onProgress({ phase: "uploading-html", percent: 60, message: "Republishing to the cloud…" });
+    const htmlStorageUrl = await storageService.uploadHtml(userId, siteId, html);
+
+    onProgress({ phase: "saving-record", percent: 72, message: "Updating website record…" });
+
+    const title = `${input.name1 || "You"} & ${input.name2 || "Them"}`;
+    const now = new Date().toISOString();
+    let site: Website;
+
+    if (isSupabaseConfigured) {
+      // Ownership check first
+      const { data: existingSite, error: fetchError } = await supabase
+        .from("websites")
+        .select("id, user_id")
+        .eq("id", siteId)
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (fetchError || !existingSite) {
+        throw new Error("Republish failed: website not found or you do not own it.");
+      }
+
+      const { data: updatedData, error: updateError } = await supabase
+        .from("websites")
+        .update({
+          title,
+          website_type: input.themeId || "cosmic",
+          published_html: htmlStorageUrl,
+          preview_image: photoUrls[0] || null,
+          blueprint_json: blueprint as unknown as Record<string, unknown>,
+          published_at: now,
+          updated_at: now,
+        })
+        .eq("id", siteId)
+        .eq("user_id", userId)
+        .select()
+        .maybeSingle();
+
+      if (updateError || !updatedData) {
+        throw new Error(`Republish failed: ${updateError?.message ?? "update failed"}`);
+      }
+
+      site = normalizeWebsite(updatedData as Record<string, unknown>);
+
+      void supabase.from("deployments").insert({
+        site_id: siteId, user_id: userId, title,
+        html_url: htmlStorageUrl,
+        snapshot_json: blueprint as unknown as Record<string, unknown>,
+      }).then(({ error }) => {
+        if (error) console.warn("[Publish] Republish deployment history failed:", error.message);
+      });
+    } else {
+      site = {
+        id: siteId, user_id: userId, title, slug: null,
+        website_type: input.themeId || "cosmic", status: "active",
+        blueprint_json: blueprint as unknown as Record<string, unknown>,
+        preview_image: photoUrls[0] || null,
+        published_html: htmlStorageUrl, html_url: htmlStorageUrl,
+        og_image_url: photoUrls[0] || null,
+        created_at: now, updated_at: now, published_at: now,
+      } as Website;
+
+      if (isBrowser) {
+        try {
+          sessionStorage.setItem(`lovecraft-site-${siteId}`, html);
+          const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
+          const idx = sites.findIndex((s) => s.id === siteId);
+          if (idx >= 0) sites[idx] = site; else sites.unshift(site);
+          localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites.slice(0, 50)));
+        } catch { /* quota exceeded */ }
+      }
+    }
+
+    onProgress({ phase: "saving-record", percent: 90, message: "Verifying republished website…" });
+    try {
+      await verifyPublishedSite(siteId);
+    } catch (verifyErr) {
+      throw verifyErr instanceof Error ? verifyErr : new Error("Republished content could not be verified.");
+    }
+
+    const url = canonicalUrl(siteId);
+    onProgress({ phase: "done", percent: 100, message: "Your love story has been updated! 💖" });
+    return { site, url, slug: site.slug ?? null };
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // SOFT DELETE (trash)
+  // ─────────────────────────────────────────────────────────────
   async deleteSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
-      let query = supabase
-        .from("websites")
+      let q = supabase.from("websites")
         .update({ status: "trash", updated_at: new Date().toISOString() })
         .eq("id", siteId);
-      if (user) {
-        query = query.eq("user_id", user.id);
-      }
-      const { error } = await query;
-
-      if (error) {
-        console.error("[Publish] deleteSite error:", error.message);
-        throw new Error(`Failed to delete website: ${error.message}`);
-      }
+      if (user) q = q.eq("user_id", user.id);
+      const { error } = await q;
+      if (error) throw new Error(`Failed to delete: ${error.message}`);
       return;
     }
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
-      const target = sites.find((s) => s.id === siteId);
-      if (target) {
-        target.status = "trash";
-        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
-      }
+      const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
+      const t = sites.find((s) => s.id === siteId);
+      if (t) { t.status = "trash"; localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites)); }
     }
   },
 
-  /** Get all trashed websites */
   async getTrashedSites(): Promise<Website[]> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-
-      const { data } = await supabase
-        .from("websites")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("status", "trash")
+      const { data } = await supabase.from("websites").select("*")
+        .eq("user_id", user.id).eq("status", "trash")
         .order("updated_at", { ascending: false });
-      return (data ?? []) as Website[];
+      return ((data ?? []) as Record<string, unknown>[]).map(normalizeWebsite);
     }
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
-      return sites.filter((s) => s.status === "trash");
+      return (JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[])
+        .filter((s) => s.status === "trash");
     }
     return [];
   },
 
-  /** Restore site from trash */
   async restoreSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
-      let query = supabase
-        .from("websites")
+      let q = supabase.from("websites")
         .update({ status: "active", updated_at: new Date().toISOString() })
         .eq("id", siteId);
-      if (user) {
-        query = query.eq("user_id", user.id);
-      }
-      const { error } = await query;
-
-      if (error) throw new Error(`Failed to restore website: ${error.message}`);
+      if (user) q = q.eq("user_id", user.id);
+      const { error } = await q;
+      if (error) throw new Error(`Failed to restore: ${error.message}`);
       return;
     }
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
-      const target = sites.find((s) => s.id === siteId);
-      if (target) {
-        target.status = "active";
-        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
-      }
+      const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
+      const t = sites.find((s) => s.id === siteId);
+      if (t) { t.status = "active"; localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites)); }
     }
   },
 
-  /** Permanently delete site from storage & DB */
   async permanentDeleteSite(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
-      let query = supabase.from("websites").delete().eq("id", siteId);
-      if (user) {
-        query = query.eq("user_id", user.id);
-      }
-      const { error } = await query;
-      if (error) throw new Error(`Failed to permanently delete website: ${error.message}`);
+      let q = supabase.from("websites").delete().eq("id", siteId);
+      if (user) q = q.eq("user_id", user.id);
+      const { error } = await q;
+      if (error) throw new Error(`Failed to delete permanently: ${error.message}`);
       return;
     }
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
-      localStorage.setItem(
-        "lovecraft-published-sites",
-        JSON.stringify(sites.filter((s) => s.id !== siteId)),
-      );
+      const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
+      localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites.filter((s) => s.id !== siteId)));
       sessionStorage.removeItem(`lovecraft-site-${siteId}`);
     }
   },
 
-  /** Get deployments / publish history for a site */
   async getDeployments(siteId: string): Promise<Deployment[]> {
     if (isSupabaseConfigured) {
-      const { data } = await supabase
-        .from("deployments")
-        .select("*")
-        .eq("site_id", siteId)
-        .order("created_at", { ascending: false });
+      const { data } = await supabase.from("deployments").select("*")
+        .eq("site_id", siteId).order("created_at", { ascending: false });
       return (data ?? []) as Deployment[];
     }
     return [];
   },
 
-  /** Rollback site to a previous deployment */
   async rollbackDeployment(siteId: string, deploymentId: string): Promise<void> {
-    if (isSupabaseConfigured) {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: dep } = await supabase
-        .from("deployments")
-        .select("*")
-        .eq("id", deploymentId)
-        .eq("site_id", siteId)
-        .single();
-
-      if (!dep) throw new Error("Deployment snapshot not found");
-
-      let query = supabase
-        .from("websites")
-        .update({
-          title: dep.title,
-          published_html: dep.html_url,
-          blueprint_json: dep.snapshot_json,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", siteId);
-
-      if (user) {
-        query = query.eq("user_id", user.id);
-      }
-
-      const { error } = await query;
-      if (error) throw new Error(`Rollback failed: ${error.message}`);
-    }
+    if (!isSupabaseConfigured) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Sign in to rollback.");
+    const { data: dep } = await supabase.from("deployments").select("*")
+      .eq("id", deploymentId).eq("site_id", siteId).single();
+    if (!dep) throw new Error("Deployment not found.");
+    const { error } = await supabase.from("websites").update({
+      title: dep.title,
+      published_html: dep.html_url,
+      blueprint_json: dep.snapshot_json,
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("id", siteId).eq("user_id", user.id);
+    if (error) throw new Error(`Rollback failed: ${error.message}`);
   },
 
-  /** Rename a site title */
   async renameSite(siteId: string, newTitle: string): Promise<void> {
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
-      let query = supabase
-        .from("websites")
+      let q = supabase.from("websites")
         .update({ title: newTitle, updated_at: new Date().toISOString() })
         .eq("id", siteId);
-
-      if (user) {
-        query = query.eq("user_id", user.id);
-      }
-
-      const { error } = await query;
-      if (error) throw new Error(`Failed to rename website: ${error.message}`);
+      if (user) q = q.eq("user_id", user.id);
+      const { error } = await q;
+      if (error) throw new Error(`Failed to rename: ${error.message}`);
       return;
     }
-
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
-      const site = sites.find((s) => s.id === siteId);
-      if (site) {
-        site.title = newTitle;
-        site.updated_at = new Date().toISOString();
-        localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
-      }
+      const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
+      const s = sites.find((s) => s.id === siteId);
+      if (s) { s.title = newTitle; s.updated_at = new Date().toISOString(); localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites)); }
     }
   },
 
-  /** Duplicate a site for the current user */
   async duplicateSite(siteId: string): Promise<Website> {
     const existing = await this.getSite(siteId);
-    if (!existing) throw new Error("Site not found");
-
+    if (!existing) throw new Error("Site not found.");
     const newSiteId = generateUUID();
-    const newTitle = `${existing.site.title} (Copy)`;
-    const newSlug = generateSlug(existing.site.title, "copy");
-
     if (isSupabaseConfigured) {
       const { data: { user } } = await supabase.auth.getUser();
-      const currentUserId = user?.id || existing.site.user_id;
-
       const payload = {
         id: newSiteId,
-        user_id: currentUserId,
-        title: newTitle,
-        slug: newSlug,
+        user_id: user?.id || existing.site.user_id,
+        title: `${existing.site.title} (Copy)`,
+        slug: generateSlug(existing.site.title, "copy"),
         website_type: existing.site.website_type || "cosmic",
-        status: "active",
-        blueprint_json: existing.site.blueprint_json ?? {},
-        preview_image: existing.site.preview_image || existing.site.og_image_url || null,
+        status: "active" as const,
         published_html: existing.site.published_html || existing.site.html_url || "",
+        preview_image: existing.site.preview_image || null,
+        blueprint_json: existing.site.blueprint_json ?? {},
       };
-
-      const { data, error } = await supabase
-        .from("websites")
-        .insert(payload)
-        .select()
-        .single();
-
-      if (error) throw new Error(`Failed to duplicate site: ${error.message}`);
-      return {
-        ...data,
-        html_url: data.published_html,
-        og_image_url: data.preview_image,
-      } as Website;
+      const { data, error } = await supabase.from("websites").insert(payload).select().single();
+      if (error) throw new Error(`Failed to duplicate: ${error.message}`);
+      return normalizeWebsite(data as Record<string, unknown>);
     }
-
     const duplicated: Website = {
-      ...existing.site,
-      id: newSiteId,
-      title: newTitle,
-      slug: newSlug,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      ...existing.site, id: newSiteId,
+      title: `${existing.site.title} (Copy)`,
+      slug: generateSlug(existing.site.title, "copy"),
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     };
-
     if (isBrowser) {
-      const sites = JSON.parse(
-        localStorage.getItem("lovecraft-published-sites") ?? "[]",
-      ) as Website[];
+      const sites = JSON.parse(localStorage.getItem("lovecraft-published-sites") ?? "[]") as Website[];
       sites.unshift(duplicated);
       localStorage.setItem("lovecraft-published-sites", JSON.stringify(sites));
       sessionStorage.setItem(`lovecraft-site-${newSiteId}`, existing.html);
     }
-
     return duplicated;
   },
 
-  /** Increment view counter */
   async trackView(siteId: string): Promise<void> {
     if (isSupabaseConfigured) {
-      try {
-        await supabase.rpc("increment_site_views", { site_id: siteId });
-      } catch {
-        // Ignore if RPC missing
-      }
-      return;
+      try { await supabase.rpc("increment_site_views", { site_id: siteId }); } catch { /* non-critical */ }
     }
   },
 };

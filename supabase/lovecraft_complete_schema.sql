@@ -102,6 +102,8 @@ CREATE TABLE IF NOT EXISTS public.project_versions (
 CREATE INDEX IF NOT EXISTS idx_versions_project ON public.project_versions(project_id);
 
 -- PUBLISHED SITES
+-- Final schema after all migrations (001 → 012).
+-- See supabase/migrations/ for the full history.
 CREATE TABLE IF NOT EXISTS public.websites (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   project_id      UUID NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
@@ -109,23 +111,54 @@ CREATE TABLE IF NOT EXISTS public.websites (
   version_id      UUID REFERENCES public.project_versions(id),
   slug            TEXT UNIQUE,
   title           TEXT NOT NULL DEFAULT 'Love Story',
-  html_url        TEXT NOT NULL,
+
+  -- Canonical storage URL for the published HTML file (public Supabase bucket).
+  -- This is the primary storage URL column in production.
+  -- NOTE: html_url does NOT exist in the production database. The canonical
+  --       column name is published_html. Do not add html_url.
+  published_html  TEXT NOT NULL DEFAULT '',
+
+  -- Blueprint JSON for fallback client-side rendering without fetching storage.
+  -- Added in migration 012.
+  blueprint_json  JSONB,
+
+  -- OG / preview image URL.
   og_image_url    TEXT,
+
+  -- First uploaded photo URL — alias for og_image_url.
+  -- Added in migration 012.
+  preview_image   TEXT,
+
+  -- Theme identifier (e.g. 'cosmic', 'sakura', 'golden').
+  -- Added in migration 012.
+  website_type    TEXT,
+
   is_public       BOOLEAN DEFAULT TRUE NOT NULL,
   password_hash   TEXT,
   views           BIGINT DEFAULT 0 NOT NULL,
   unique_visitors BIGINT DEFAULT 0 NOT NULL,
+
+  -- 'trash' added in migration 007.
   status          TEXT DEFAULT 'active' NOT NULL
-                    CHECK (status IN ('active', 'inactive', 'deleted')),
+                    CHECK (status IN ('active', 'inactive', 'deleted', 'trash')),
+
   created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+
+  -- When the website was last successfully published.
+  -- Added in migration 012.
+  published_at    TIMESTAMPTZ,
+
   CONSTRAINT slug_format CHECK (slug ~ '^[a-z0-9-]+$' OR slug IS NULL)
 );
 
-CREATE INDEX IF NOT EXISTS idx_sites_slug      ON public.websites(slug);
-CREATE INDEX IF NOT EXISTS idx_sites_project   ON public.websites(project_id);
-CREATE INDEX IF NOT EXISTS idx_sites_user      ON public.websites(user_id);
-CREATE INDEX IF NOT EXISTS idx_sites_status    ON public.websites(status);
+CREATE INDEX IF NOT EXISTS idx_sites_slug         ON public.websites(slug);
+CREATE INDEX IF NOT EXISTS idx_sites_project      ON public.websites(project_id);
+CREATE INDEX IF NOT EXISTS idx_sites_user         ON public.websites(user_id);
+CREATE INDEX IF NOT EXISTS idx_sites_status       ON public.websites(status);
+CREATE INDEX IF NOT EXISTS idx_websites_type      ON public.websites(website_type);      -- migration 012
+CREATE INDEX IF NOT EXISTS idx_websites_published ON public.websites(published_at DESC); -- migration 012
+
 
 DROP TRIGGER IF EXISTS sites_updated_at ON public.websites;
 CREATE TRIGGER sites_updated_at

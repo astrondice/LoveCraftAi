@@ -17,7 +17,7 @@ export function SitePreviewModal({ site, isOpen, onClose }: SitePreviewModalProp
 
   if (!isOpen || !site) return null;
 
-  const liveUrl = site.html_url || `${window.location.origin}/sites/${site.id}`;
+  const liveUrl = site.published_html || site.html_url || `${window.location.origin}/sites/${site.id}`;
 
   return (
     <AnimatePresence>
