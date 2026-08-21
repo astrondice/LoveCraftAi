@@ -18,8 +18,18 @@
 //   happens explicitly in the callback route), and causes SSR issues.
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const getEnvVar = (name: string): string => {
+  if (typeof import.meta !== "undefined" && import.meta.env && import.meta.env[name]) {
+    return import.meta.env[name] as string;
+  }
+  if (typeof process !== "undefined" && process.env && process.env[name]) {
+    return process.env[name] as string;
+  }
+  return "";
+};
+
+const supabaseUrl = getEnvVar("VITE_SUPABASE_URL") || getEnvVar("SUPABASE_URL");
+const supabaseAnonKey = getEnvVar("VITE_SUPABASE_ANON_KEY") || getEnvVar("SUPABASE_ANON_KEY");
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
