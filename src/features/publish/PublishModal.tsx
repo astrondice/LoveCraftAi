@@ -16,6 +16,7 @@ interface PublishModalProps {
   isOpen: boolean;
   onClose: () => void;
   input: PublishInput;
+  existingSiteId?: string;
 }
 
 type Stage = "idle" | "auth" | "publishing" | "success" | "error";
@@ -37,7 +38,7 @@ import {
   clearPendingPublish,
 } from "@/lib/pending-publish";
 
-export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
+export function PublishModal({ isOpen, onClose, input, existingSiteId }: PublishModalProps) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [stage, setStage] = useState<Stage>("idle");
   const [progress, setProgress] = useState<PublishProgress>({
@@ -83,11 +84,9 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
       console.log("[PUBLISH DEBUG] startPublish called", { userId, activeInputName: activeInput.name1 });
 
       try {
-        const res = await publishService.publish(
-          { ...activeInput, projectId: undefined },
-          userId,
-          (p) => setProgress(p),
-        );
+        const res = existingSiteId
+          ? await publishService.republish(existingSiteId, activeInput, userId, (p) => setProgress(p))
+          : await publishService.publish(activeInput, userId, (p) => setProgress(p));
         await clearPendingPublish();
         setResult(res);
         setStage("success");
@@ -101,7 +100,7 @@ export function PublishModal({ isOpen, onClose, input }: PublishModalProps) {
         isPublishingRef.current = false;
       }
     },
-    [input],
+    [existingSiteId, input],
   );
 
   // Trigger publish when modal opens or user authenticates

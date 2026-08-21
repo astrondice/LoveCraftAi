@@ -26,7 +26,10 @@ export function ExportModal({ site, isOpen, onClose }: ExportModalProps) {
     try {
       toast.loading("Preparing export package…", { id: "exp" });
       const res = await publishService.getSite(site.id);
-      const html = res?.html ?? "<html><body><h1>Love Story</h1></body></html>";
+      if (!res) throw new Error("The active published version could not be found.");
+      const response = await fetch(res.htmlUrl);
+      if (!response.ok) throw new Error("Could not download the active published version.");
+      const html = await response.text();
       await exportService.exportSite(site, html, format);
       toast.success("Export downloaded successfully!", { id: "exp" });
       onClose();

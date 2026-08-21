@@ -178,8 +178,7 @@ export const storageService = {
    */
   async uploadHtml(userId: string, siteId: string, html: string): Promise<string> {
     if (!isSupabaseConfigured) {
-      const blob = new Blob([html], { type: "text/html" });
-      return URL.createObjectURL(blob);
+      throw new Error("Publishing requires configured Supabase Storage.");
     }
 
     const path = storagePaths.html(userId, siteId);
@@ -212,6 +211,54 @@ export const storageService = {
     const publicUrl = getPublicUrl(STORAGE_BUCKETS.publishedAssets, path);
     console.log("[Storage] HTML uploaded successfully →", publicUrl);
     return publicUrl;
+  },
+
+  /** Upload a finalized immutable public asset for one published version. */
+  async uploadPublishedAsset(
+    siteId: string,
+    versionId: string,
+    type: "images" | "audio" | "videos",
+    source: string,
+    filename: string,
+  ): Promise<string> {
+    if (!isSupabaseConfigured) throw new Error("Publishing requires configured Supabase Storage.");
+    const blob = source.startsWith("data:")
+      ? dataUrlToBlob(source)
+      : await fetch(source).then(async (response) => {
+          if (!response.ok) throw new Error(`Could not read draft asset (${response.status}).`);
+          return response.blob();
+        });
+    const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "-") || "asset";
+    const path = storagePaths.publishedAsset(siteId, versionId, type, `${Date.now()}-${safeName}`);
+    const { error } = await supabase.storage.from(STORAGE_BUCKETS.publishedAssets).upload(path, blob, {
+      contentType: blob.type || "application/octet-stream",
+      upsert: false,
+    });
+    if (error) throw new Error(`Published asset upload failed: ${error.message}`);
+    return getPublicUrl(STORAGE_BUCKETS.publishedAssets, path);
+  },
+
+  /** Upload immutable HTML after all final asset URLs have been embedded. */
+  async uploadPublishedHtml(siteId: string, versionId: string, html: string): Promise<string> {
+    if (!isSupabaseConfigured) throw new Error("Publishing requires configured Supabase Storage.");
+    const path = storagePaths.publishedHtml(siteId, versionId);
+    const { error } = await supabase.storage.from(STORAGE_BUCKETS.publishedAssets).upload(
+      path,
+      new Blob([html], { type: "text/html; charset=utf-8" }),
+      { contentType: "text/html; charset=utf-8", upsert: false },
+    );
+    if (error) throw new Error(`Published HTML upload failed: ${error.message}`);
+    return getPublicUrl(STORAGE_BUCKETS.publishedAssets, path);
+  },
+
+  async deletePendingPublishedVersion(siteId: string, versionId: string): Promise<void> {
+    if (!isSupabaseConfigured) return;
+    const prefix = `published/${siteId}/${versionId}`;
+    const removeTree = async (folder: string) => {
+      const { data } = await supabase.storage.from(STORAGE_BUCKETS.publishedAssets).list(folder, { limit: 1000 });
+      if (data?.length) await supabase.storage.from(STORAGE_BUCKETS.publishedAssets).remove(data.map((f) => `${folder}/${f.name}`));
+    };
+    await Promise.allSettled([removeTree(prefix), removeTree(`${prefix}/images`), removeTree(`${prefix}/audio`), removeTree(`${prefix}/videos`)]);
   },
 
   /**

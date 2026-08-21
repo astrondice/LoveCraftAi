@@ -46,5 +46,11 @@ export const storagePaths = {
 
   html: (userId: string, siteId: string) => `users/${userId}/sites/${siteId}/index.html`,
 
+  publishedAsset: (siteId: string, versionId: string, type: "images" | "audio" | "videos", filename: string) =>
+    `published/${siteId}/${versionId}/${type}/${filename}`,
+
+  publishedHtml: (siteId: string, versionId: string) =>
+    `published/${siteId}/${versionId}/index.html`,
+
   thumbnail: (userId: string, siteId: string) => `users/${userId}/sites/${siteId}/thumbnail.jpg`,
 } as const;

@@ -110,7 +110,7 @@ export function PublishHistoryModal({
                       <span className="font-display text-lg text-ivory">
                         Publish #{dep.version_num}
                       </span>
-                      {idx === 0 && (
+                      {site.active_version_id === dep.id && (
                         <span className="bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded-full label-caps text-[9px]">
                           Active Live
                         </span>
@@ -131,7 +131,7 @@ export function PublishHistoryModal({
                     >
                       <ExternalLink size={14} />
                     </a>
-                    {idx !== 0 && (
+                    {site.active_version_id !== dep.id && (
                       <button
                         onClick={() => handleRollback(dep)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gold/15 border border-gold/30 text-gold hover:bg-gold/25 label-caps text-[10px] transition-all"

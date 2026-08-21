@@ -169,7 +169,7 @@ function DashboardPage() {
           : [],
         music: null,
         video: null,
-        projectId: republishSite.id,
+        projectId: undefined,
       }
     : null;
 
@@ -377,6 +377,7 @@ function DashboardPage() {
             isOpen={!!republishSite}
             onClose={() => setRepublishSite(null)}
             input={republishInput}
+            existingSiteId={republishSite?.id}
           />
         )}
       </Suspense>

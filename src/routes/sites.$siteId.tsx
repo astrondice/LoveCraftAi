@@ -3,9 +3,8 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/ui/Logo";
 import { Heart, ExternalLink } from "lucide-react";
-import { publishService } from "@/services/publish.service";
+import { publishService, type PublicSite } from "@/services/publish.service";
 import { analyticsService } from "@/services/analytics.service";
-import type { PublishedSite } from "@/types";
 
 const SITE_BASE = "https://lovecraft.ai";
 const DEFAULT_OG = `${SITE_BASE}/branding/og-default.png`;
@@ -32,7 +31,6 @@ export const Route = createFileRoute("/sites/$siteId")({
     // Index ONLY when: status === "active" AND is_public !== false AND seo_noindex !== true
     const isPublic =
       site?.status === "active" &&
-      site?.is_public !== false &&
       !((site as unknown as Record<string, unknown>)?.seo_noindex);
 
     const robots = isPublic ? "index,follow" : "noindex,nofollow";
@@ -73,12 +71,12 @@ export const Route = createFileRoute("/sites/$siteId")({
 function SiteViewerPage() {
   const { siteId } = Route.useParams();
   const loaderData = Route.useLoaderData();
-  const [html, setHtml] = useState<string | null>(null);
+  const [htmlUrl, setHtmlUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   // Use the site metadata already loaded by the route loader if available
-  const [site, setSite] = useState<PublishedSite | null>(loaderData?.site ?? null);
+  const [site, setSite] = useState<PublicSite | null>(loaderData?.site ?? null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,7 +94,7 @@ function SiteViewerPage() {
         }
 
         setSite(result.site);
-        setHtml(result.html);
+        setHtmlUrl(result.htmlUrl);
         setLoading(false);
 
         // Track view (fire-and-forget)
@@ -140,7 +138,7 @@ function SiteViewerPage() {
     );
   }
 
-  if (notFound || !html) {
+  if (notFound || !htmlUrl) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center px-4">
         <div className="text-center max-w-md">
@@ -162,17 +160,18 @@ function SiteViewerPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
-      {/* Full-screen iframe with the generated HTML */}
+      {/* The published HTML is a separate Supabase Storage document origin.
+          Never inject it with srcDoc: it must not inherit the app origin or session. */}
       <AnimatePresence>
         <motion.iframe
           key={siteId}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          srcDoc={html}
+          src={htmlUrl}
           title={site?.title ?? "Love Story"}
           className="w-full h-full border-0"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           referrerPolicy="no-referrer"
         />
       </AnimatePresence>

@@ -25,6 +25,7 @@ export interface Website {
   /** FK to projects table. Required in DB (NOT NULL). */
   project_id?: string;
   version_id?: string | null;
+  active_version_id?: string | null;
 
   // ── Content ──────────────────────────────────────────────────
   title: string;

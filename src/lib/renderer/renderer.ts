@@ -4,6 +4,33 @@ import { renderHero, renderStory, renderGallery, renderTimeline, renderVideo } f
 
 import { getThemeById } from "../../themes";
 
+const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[char] || char);
+const safeUrl = (value: string | undefined) => {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? escapeHtml(url.href) : "";
+  } catch { return ""; }
+};
+function safeBlueprint(blueprint: WebsiteBlueprint): WebsiteBlueprint {
+  const copy = structuredClone(blueprint);
+  copy.seo.title = escapeHtml(copy.seo.title);
+  copy.seo.description = escapeHtml(copy.seo.description);
+  copy.seo.keywords = copy.seo.keywords.map(escapeHtml);
+  copy.seo.openGraph.image = safeUrl(copy.seo.openGraph.image);
+  copy.hero.title = escapeHtml(copy.hero.title);
+  copy.hero.subtitle = copy.hero.subtitle ? escapeHtml(copy.hero.subtitle) : copy.hero.subtitle;
+  copy.hero.tagline = copy.hero.tagline ? escapeHtml(copy.hero.tagline) : copy.hero.tagline;
+  if (copy.hero.backgroundMedia) copy.hero.backgroundMedia.url = safeUrl(copy.hero.backgroundMedia.url);
+  if (copy.story) { copy.story.heading = copy.story.heading ? escapeHtml(copy.story.heading) : copy.story.heading; copy.story.paragraphs = copy.story.paragraphs.map(escapeHtml); copy.story.pullQuote = copy.story.pullQuote ? escapeHtml(copy.story.pullQuote) : copy.story.pullQuote; }
+  if (copy.gallery) { copy.gallery.heading = copy.gallery.heading ? escapeHtml(copy.gallery.heading) : copy.gallery.heading; copy.gallery.media = copy.gallery.media.map((m) => ({ ...m, url: safeUrl(m.url), alt: m.alt ? escapeHtml(m.alt) : m.alt, caption: m.caption ? escapeHtml(m.caption) : m.caption })); }
+  if (copy.timeline) { copy.timeline.heading = copy.timeline.heading ? escapeHtml(copy.timeline.heading) : copy.timeline.heading; copy.timeline.events = copy.timeline.events.map((e) => ({ date: escapeHtml(e.date), title: escapeHtml(e.title), description: escapeHtml(e.description) })); }
+  if (copy.videoSection) { copy.videoSection.heading = copy.videoSection.heading ? escapeHtml(copy.videoSection.heading) : copy.videoSection.heading; copy.videoSection.media.url = safeUrl(copy.videoSection.media.url); }
+  if (copy.music) copy.music.url = safeUrl(copy.music.url);
+  copy.footer.text = escapeHtml(copy.footer.text);
+  return copy;
+}
+
 function injectStyles(blueprint: WebsiteBlueprint): string {
   const p = blueprint.colorPalette;
   const t = blueprint.typography;
@@ -64,6 +91,7 @@ function injectFonts(blueprint: WebsiteBlueprint): string {
 }
 
 export function renderBlueprint(blueprint: WebsiteBlueprint): string {
+  blueprint = safeBlueprint(blueprint);
   const seo = blueprint.seo;
   const isRakhi = blueprint.theme?.startsWith("rakhi-") || blueprint.websiteType === "raksha-bandhan";
 
@@ -118,7 +146,7 @@ export function renderBlueprint(blueprint: WebsiteBlueprint): string {
 
   <!-- JSON-LD Structured Data -->
   <script type="application/ld+json">
-    ${JSON.stringify(jsonLdData)}
+    ${JSON.stringify(jsonLdData).replace(/</g, "\\u003c")}
   </script>
 
   ${injectFonts(blueprint)}
