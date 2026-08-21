@@ -63,7 +63,65 @@ export const publishService = {
     }
   },
 
-  async getSite(siteId: string): Promise<{ site: PublicSite; htmlUrl: string } | null> { requireConfigured(); const { data, error } = await supabase.rpc("get_public_site", { p_site_id: siteId }); const row = Array.isArray(data) ? data[0] : data; return error || !row ? null : { site: { ...(row as PublicSite), status: "active", is_public: true }, htmlUrl: (row as PublicSite).html_url }; },
+  async getSite(siteId: string): Promise<{ site: PublicSite; htmlUrl: string } | null> {
+    if (!siteId) return null;
+
+    // 1. Primary path: Call get_public_site RPC (granted to anon + authenticated)
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.rpc("get_public_site", { p_site_id: siteId });
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!error && row && row.html_url) {
+          const publicSite: PublicSite = {
+            id: row.id,
+            title: row.title ?? "A Beautiful Memory",
+            website_type: row.website_type ?? null,
+            preview_image: row.preview_image ?? null,
+            published_at: row.published_at ?? null,
+            html_url: row.html_url,
+            status: "active",
+            is_public: true,
+          };
+          return { site: publicSite, htmlUrl: row.html_url };
+        }
+      } catch {
+        // Fallback to controlled public API endpoint below
+      }
+    }
+
+    // 2. Secondary path: Controlled public backend API endpoint
+    try {
+      const apiOrigin = typeof window !== "undefined" ? window.location.origin : PUBLIC_ORIGIN;
+      const res = await fetch(`${apiOrigin}/api/publish/sites/${siteId}`, { method: "GET" });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          id: string;
+          title: string;
+          website_type?: string | null;
+          preview_image?: string | null;
+          html_url?: string | null;
+          published_at?: string | null;
+        };
+        if (data && data.html_url) {
+          const publicSite: PublicSite = {
+            id: data.id,
+            title: data.title ?? "A Beautiful Memory",
+            website_type: data.website_type ?? null,
+            preview_image: data.preview_image ?? null,
+            published_at: data.published_at ?? null,
+            html_url: data.html_url,
+            status: "active",
+            is_public: true,
+          };
+          return { site: publicSite, htmlUrl: data.html_url };
+        }
+      }
+    } catch {
+      // If public API fails or 404, return null
+    }
+
+    return null;
+  },
   async getUserSites(): Promise<Website[]> { requireConfigured(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return []; const { data, error } = await supabase.from("websites").select("*").eq("user_id", user.id).eq("status", "active").order("updated_at", { ascending: false }); if (error) throw new Error(error.message); return (data || []).map(r => asWebsite(r as Record<string, unknown>)); },
   async setStatus(siteId: string, status: Website["status"]) { requireConfigured(); const { data: { user } } = await supabase.auth.getUser(); if (!user) throw new Error("Sign in required."); const { error } = await supabase.from("websites").update({ status }).eq("id", siteId).eq("user_id", user.id); if (error) throw new Error(error.message); },
   async deleteSite(siteId: string) { return this.setStatus(siteId, "trash"); },

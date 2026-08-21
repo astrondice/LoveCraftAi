@@ -10,22 +10,46 @@ import type { Bindings, Variables } from "../index";
 
 export const publishRouter = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
-// GET /api/publish/sites/:id — Public: fetch website metadata
+// GET /api/publish/sites/:id — Public: fetch active published website metadata
 publishRouter.get("/sites/:id", async (c) => {
   const { id } = c.req.param();
   const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
 
+  // 1. Try public RPC get_public_site first to resolve active published version
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_public_site", { p_site_id: id });
+  const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+
+  if (!rpcError && row && row.html_url) {
+    return c.json({
+      id: row.id,
+      title: row.title,
+      website_type: row.website_type ?? null,
+      preview_image: row.preview_image ?? null,
+      html_url: row.html_url,
+      published_at: row.published_at ?? null,
+    });
+  }
+
+  // 2. Direct query on active website record selecting ONLY safe public columns
   const { data, error } = await supabase
     .from("websites")
-    .select(
-      "id, title, slug, website_type, status, preview_image, published_html, published_at",
-    )
+    .select("id, title, website_type, status, preview_image, published_html, published_at")
     .eq("id", id)
     .eq("status", "active")
     .maybeSingle();
 
-  if (error || !data) return c.json({ error: "Site not found" }, 404);
-  return c.json(data);
+  if (error || !data || !data.published_html) {
+    return c.json({ error: "Site not found" }, 404);
+  }
+
+  return c.json({
+    id: data.id,
+    title: data.title,
+    website_type: data.website_type ?? null,
+    preview_image: data.preview_image ?? null,
+    html_url: data.published_html,
+    published_at: data.published_at ?? null,
+  });
 });
 
 // POST /api/publish/sites/:id/view — Public: track a page view

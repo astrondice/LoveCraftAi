@@ -12,6 +12,10 @@ const DEFAULT_OG = `${SITE_BASE}/branding/og-default.png`;
 // TanStack Start supports a loaderDeps + loader pattern for SSR.
 // We keep the head() simple and SSR-friendly by reading loaderData.
 export const Route = createFileRoute("/sites/$siteId")({
+  // Public route: explicitly bypasses authentication guards and login redirects.
+  beforeLoad: () => {
+    return;
+  },
   // Loader fetches the site record on the server for SSR head injection.
   loader: async ({ params }) => {
     try {
