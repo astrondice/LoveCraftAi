@@ -52,6 +52,43 @@ publishRouter.get("/sites/:id", async (c) => {
   });
 });
 
+// GET /api/publish/sites/:id/render — Public: render published HTML document with text/html content-type
+publishRouter.get("/sites/:id/render", async (c) => {
+  const { id } = c.req.param();
+  const supabase = createClient(c.env.SUPABASE_URL, c.env.SUPABASE_SERVICE_ROLE_KEY);
+
+  let htmlUrl: string | null = null;
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_public_site", { p_site_id: id });
+  const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+
+  if (!rpcError && row && row.html_url) {
+    htmlUrl = row.html_url;
+  } else {
+    const { data } = await supabase
+      .from("websites")
+      .select("published_html")
+      .eq("id", id)
+      .eq("status", "active")
+      .maybeSingle();
+    htmlUrl = data?.published_html ?? null;
+  }
+
+  if (!htmlUrl) {
+    return c.json({ error: "Site not found" }, 404);
+  }
+
+  const htmlRes = await fetch(htmlUrl);
+  if (!htmlRes.ok) {
+    return c.json({ error: "Could not fetch published website HTML" }, 502);
+  }
+
+  const htmlText = await htmlRes.text();
+  return c.html(htmlText, 200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "public, max-age=3600, s-maxage=86400",
+  });
+});
+
 // POST /api/publish/sites/:id/view — Public: track a page view
 publishRouter.post("/sites/:id/view", async (c) => {
   const { id } = c.req.param();

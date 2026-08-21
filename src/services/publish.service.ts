@@ -68,6 +68,48 @@ export const getPublicSiteServerFn = createServerFn({ method: "GET" })
     };
   });
 
+export const getPublicSiteRenderServerFn = createServerFn({ method: "GET" })
+  .validator((siteId: string) => siteId)
+  .handler(async ({ data: siteId }) => {
+    if (!siteId) return null;
+
+    const supabaseUrl =
+      (typeof process !== "undefined" ? process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL : "") ||
+      "https://oucygqsltknoderruayc.supabase.co";
+    const supabaseServiceKey =
+      (typeof process !== "undefined" ? process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_SERVICE_ROLE_KEY : "") ||
+      "sb_publishable_p-koiNrSnQV6QsL3GLr-DA_ApR6VEI5";
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    let htmlUrl: string | null = null;
+    const { data: rpcData, error: rpcErr } = await supabase.rpc("get_public_site", { p_site_id: siteId });
+    const row = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+
+    if (!rpcErr && row && row.html_url) {
+      htmlUrl = row.html_url;
+    } else {
+      const { data } = await supabase
+        .from("websites")
+        .select("published_html")
+        .eq("id", siteId)
+        .eq("status", "active")
+        .maybeSingle();
+      htmlUrl = data?.published_html ?? null;
+    }
+
+    if (!htmlUrl) return null;
+
+    try {
+      const res = await fetch(htmlUrl);
+      if (!res.ok) return null;
+      const html = await res.text();
+      return { html, htmlUrl };
+    } catch {
+      return null;
+    }
+  });
+
 export const publishService = {
   async publish(input: PublishInput, userId: string, progress: (p: PublishProgress) => void): Promise<PublishResult> { return this.publishVersion(undefined, input, userId, progress); },
   async republish(siteId: string, input: PublishInput, userId: string, progress: (p: PublishProgress) => void): Promise<PublishResult> { return this.publishVersion(siteId, input, userId, progress); },
@@ -173,6 +215,20 @@ export const publishService = {
       }
       if (created) await supabase.from("websites").delete().eq("id", siteId).eq("user_id", userId);
       throw error;
+    }
+  },
+
+  async getSiteHtml(siteId: string): Promise<{ html: string; site: PublicSite; htmlUrl: string } | null> {
+    const result = await this.getSite(siteId);
+    if (!result || !result.htmlUrl) return null;
+
+    try {
+      const res = await fetch(result.htmlUrl);
+      if (!res.ok) return null;
+      const html = await res.text();
+      return { html, site: result.site, htmlUrl: result.htmlUrl };
+    } catch {
+      return null;
     }
   },
 

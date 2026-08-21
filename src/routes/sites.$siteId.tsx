@@ -162,20 +162,20 @@ function SiteViewerPage() {
     );
   }
 
+  const renderUrl = `/api/publish/sites/${siteId}/render`;
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black">
-      {/* The published HTML is a separate Supabase Storage document origin.
-          Never inject it with srcDoc: it must not inherit the app origin or session. */}
       <AnimatePresence>
         <motion.iframe
           key={siteId}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          src={htmlUrl}
+          src={renderUrl}
           title={site?.title ?? "Love Story"}
           className="w-full h-full border-0"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           referrerPolicy="no-referrer"
         />
       </AnimatePresence>
